@@ -14,7 +14,7 @@ Deskripsi Singkat : SAVORA adalah aplikasi mobile untuk membantu usaha Food & Be
 Rencana Fitur :
 
 👑 Owner :
-Dashboard
+- Dashboard
 - Menampilkan ringkasan penjualan, transaksi, kondisi stok, menu terlaris, dan rekomendasi restock.
 - Monitoring Stok
 - Memantau jumlah dan status stok makanan serta minuman yang tersedia.
