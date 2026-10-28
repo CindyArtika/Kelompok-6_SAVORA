@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "359819187218",
+    "project_id": "tubes-pemob-8e38e",
+    "storage_bucket": "tubes-pemob-8e38e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:359819187218:android:a1ca9de0683b7befdc34cb",
+        "android_client_info": {
+          "package_name": "com.example.tubespemmob"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "359819187218-0q0nc9vo02teofu8n4upn6p36h6vb3ss.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.tubespemmob",
+            "certificate_hash": "1e11bcf1cadbbd7398e14e24a9c19c81e12249d5"
+          }
+        },
+        {
+          "client_id": "359819187218-m3nci7ovc2su5u8tm6h2f0b85050o3dg.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCuop-UDne_VV4UmrINfZVDEQUHbvudwC8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "359819187218-m3nci7ovc2su5u8tm6h2f0b85050o3dg.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
