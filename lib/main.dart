@@ -1,15 +1,12 @@
+
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 
-import 'firebase_options.dart';
-import 'login.dart';
+import 'splash_screen.dart';
 
-Future<void> main() async {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp();
 
   runApp(const SavoraApp());
 }
@@ -20,16 +17,15 @@ class SavoraApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'SAVORA',
       debugShowCheckedModeBanner: false,
+      title: 'SAVORA',
       theme: ThemeData(
-        useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF059669),
+          seedColor: const Color(0xFF4C8547),
         ),
-        scaffoldBackgroundColor: const Color(0xFFF7F9FB),
+        useMaterial3: true,
       ),
-      home: const LoginScreen(),
+      home: const SplashScreen(),
     );
   }
 }
