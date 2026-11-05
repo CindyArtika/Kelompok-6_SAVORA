@@ -32,7 +32,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-        Future<void> _login() async {
+              Future<void> _login() async {
           if (!_formKey.currentState!.validate()) return;
 
           setState(() {
@@ -50,11 +50,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
             if (!mounted) return;
 
-            Navigator.pushReplacement(
+            Navigator.pushAndRemoveUntil(
               context,
               MaterialPageRoute(
                 builder: (context) => const OwnerHome(),
               ),
+              (route) => false,
             );
           } on FirebaseAuthException catch (e) {
             String message = 'Terjadi kesalahan saat login.';
@@ -83,7 +84,7 @@ class _LoginScreenState extends State<LoginScreen> {
             }
           }
         }
-  Future<void> _signInWithGoogle() async {
+          Future<void> _signInWithGoogle() async {
     setState(() {
       _isGoogleLoading = true;
     });
@@ -106,7 +107,7 @@ class _LoginScreenState extends State<LoginScreen> {
       await FirebaseAuth.instance.signInWithCredential(credential);
     } catch (e) {
       _showMessage('Login dengan Google gagal. Silakan coba kembali.');
-    } finally {
+        } finally {
       if (mounted) {
         setState(() {
           _isGoogleLoading = false;
@@ -303,7 +304,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       borderRadius: BorderRadius.circular(28),
                       boxShadow: [
                         BoxShadow(
-                          color: primaryColor.withOpacity(0.08),
+                          color: primaryColor.withValues(alpha: 0.08),
                           blurRadius: 24,
                           offset: const Offset(0, 8),
                         ),
@@ -363,7 +364,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.035),
+                          color: Colors.black.withValues(alpha: 0.035),
                           blurRadius: 25,
                           offset: const Offset(0, 10),
                         ),
@@ -482,7 +483,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 backgroundColor: primaryColor,
                                 foregroundColor: Colors.white,
                                 disabledBackgroundColor:
-                                    primaryColor.withOpacity(0.6),
+                                    primaryColor.withValues(alpha: 0.6),
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(14),
@@ -568,7 +569,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       GestureDetector(
                         onTap: () {
-                          Navigator.push(
+                          Navigator.pushReplacement(
                             context,
                             MaterialPageRoute(
                               builder: (context) => const DaftarScreen(),

@@ -1,6 +1,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:tubes_pemmob/screen/auth/login.dart';
 
 class DaftarScreen extends StatefulWidget {
   const DaftarScreen({super.key});
@@ -103,12 +104,21 @@ class _DaftarScreenState extends State<DaftarScreen> {
         password: password,
       );
 
-      await credential.user?.updateDisplayName(nama);
+        await credential.user?.updateDisplayName(nama);
 
-      if (!mounted) return;
+        // Firebase otomatis membuat sesi login setelah registrasi.
+        // Sign out dulu agar pengguna bisa masuk melalui halaman Login.
+        await FirebaseAuth.instance.signOut();
 
-      tampilkanPesan('Akun berhasil dibuat!');
-
+            if (!mounted) return;
+            tampilkanPesan('Akun berhasil dibuat!');
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const LoginScreen(),
+              ),
+              (route) => false,
+            );
       // Navigasi ke halaman utama dapat ditambahkan di sini.
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
@@ -280,7 +290,7 @@ class _DaftarScreenState extends State<DaftarScreen> {
                       borderRadius: BorderRadius.circular(28),
                       boxShadow: [
                         BoxShadow(
-                          color: primaryColor.withOpacity(0.08),
+                          color: primaryColor.withValues(alpha: 0.08),
                           blurRadius: 24,
                           offset: const Offset(0, 8),
                         ),
@@ -343,7 +353,7 @@ class _DaftarScreenState extends State<DaftarScreen> {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.035),
+                          color: Colors.black.withValues(alpha: 0.035),
                           blurRadius: 25,
                           offset: const Offset(0, 10),
                         ),
@@ -471,8 +481,11 @@ class _DaftarScreenState extends State<DaftarScreen> {
 
                                     GestureDetector(
                                       onTap: () {
-                                        tampilkanPesan(
-                                          'Halaman Syarat & Ketentuan belum dibuat.',
+                                        Navigator.pushReplacement(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => const DaftarScreen(),
+                                          ),
                                         );
                                       },
                                       child: Text(
@@ -539,7 +552,7 @@ class _DaftarScreenState extends State<DaftarScreen> {
                                 backgroundColor: primaryColor,
                                 foregroundColor: Colors.white,
                                 disabledBackgroundColor:
-                                    primaryColor.withOpacity(0.6),
+                                    primaryColor.withValues(alpha: 0.6),
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(14),
@@ -594,7 +607,12 @@ class _DaftarScreenState extends State<DaftarScreen> {
                       ),
 
                       GestureDetector(
-                        onTap: () => Navigator.pop(context),
+                        onTap: () {
+                          Navigator.pushReplacement(
+                            context, MaterialPageRoute(
+                            builder: (context) => const LoginScreen(),
+                          ));
+                        },
                         child: Text(
                           'Masuk',
                           style: TextStyle(

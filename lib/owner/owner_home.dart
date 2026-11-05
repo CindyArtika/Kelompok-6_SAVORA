@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:tubes_pemmob/splash_screen.dart';
+import 'package:tubes_pemmob/widgets/savora_loading.dart';
 
 class OwnerHome extends StatefulWidget {
   const OwnerHome({super.key});
 
   @override
   State<OwnerHome> createState() => _OwnerHomeState();
+  
 }
+
 
 class _OwnerHomeState extends State<OwnerHome> {
   static const Color primary = Color(0xFF143C2D);
@@ -17,7 +20,7 @@ class _OwnerHomeState extends State<OwnerHome> {
   static const Color lightGreen = Color(0xFFE1F0DE);
 
   int _selectedIndex = 0;
-
+  bool _isLoading = true;
   final List<String> _menuNames = [
     'Beranda',
     'Bahan',
@@ -53,26 +56,40 @@ class _OwnerHomeState extends State<OwnerHome> {
       'gambar': Icons.liquor,
     },
   ];
-
- Future<void> _logout() async {
-  try {
-    await FirebaseAuth.instance.signOut();
-
-    if (!mounted) return;
-
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const SplashScreen(),
-      ),
-      (route) => false,
-    );
-  } catch (e) {
-    if (mounted) {
-      _showMessage('Gagal logout. Silakan coba lagi.');
+    @override
+    void initState() {
+      super.initState();
+      _initializeDashboard();
     }
-  }
-}
+        Future<void> _logout() async {
+          if (_isLoading) return;
+
+          setState(() {
+            _isLoading = true;
+          });
+        
+          try {
+            await FirebaseAuth.instance.signOut();
+
+            if (!mounted) return;
+
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const SplashScreen(),
+              ),
+              (route) => false,
+            );
+          } catch (e) {
+            if (!mounted) return;
+
+            setState(() {
+              _isLoading = false;
+            });
+
+            _showMessage('Gagal logout. Silakan coba lagi.');
+          }
+        }
 
   void _showLogoutDialog() {
     showDialog(
@@ -89,10 +106,10 @@ class _OwnerHomeState extends State<OwnerHome> {
               child: const Text('Batal'),
             ),
             ElevatedButton(
-              onPressed: () async {
-                Navigator.pop(dialogContext);
-                await _logout();
-              },
+                onPressed: () async {
+                  Navigator.pop(dialogContext);
+                  _logout();
+                },
               style: ElevatedButton.styleFrom(
                 backgroundColor: primary,
                 foregroundColor: Colors.white,
@@ -111,17 +128,25 @@ class _OwnerHomeState extends State<OwnerHome> {
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: background,
-      body: SafeArea(
-        child: _selectedIndex == 0 ? _buildDashboard() : _buildOtherPage(),
-      ),
-      bottomNavigationBar: _buildBottomNavigation(),
+ @override
+Widget build(BuildContext context) {
+  if (_isLoading) {
+    return const SavoraLoading(
+      title: 'Menyiapkan SAVORA Owner',
+      subtitle: 'Menyiapkan dashboard operasional...',
     );
   }
 
+  return Scaffold(
+    backgroundColor: background,
+    body: SafeArea(
+      child: _selectedIndex == 0
+          ? _buildDashboard()
+          : _buildOtherPage(),
+    ),
+    bottomNavigationBar: _buildBottomNavigation(),
+  );
+}
   // ================= DASHBOARD =================
 
   Widget _buildDashboard() {
@@ -168,124 +193,116 @@ class _OwnerHomeState extends State<OwnerHome> {
     );
   }
 
-        Widget _buildHeader() {
-          return Container(
-            margin: const EdgeInsets.fromLTRB(0, 10, 0, 8),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+  Widget _buildHeader() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(0, 10, 0, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(0),
+        boxShadow: [
+          BoxShadow(
+            color: primary.withValues(alpha: 0.08),
+            blurRadius: 14,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 58,
+            height: 58,
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(0),
-              boxShadow: [
-                BoxShadow(
-                  color: primary.withValues(alpha: 0.08),
-                  blurRadius: 14,
-                  offset: const Offset(0, 3),
-                ),
-              ],
+              color: const Color(0xFFDCEBD5),
+              borderRadius: BorderRadius.circular(18),
             ),
-            child: Row(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: Image.asset(
+                'assets/images/Logo_savora.png',
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  return const Icon(Icons.store, size: 30, color: primary);
+                },
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 58,
-                  height: 58,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFDCEBD5),
-                    borderRadius: BorderRadius.circular(18),
+                const Text(
+                  'SAVORA Owner',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: textColor,
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(18),
-                    child: Image.asset(
-                      'assets/images/Logo_savora.png',
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) {
-                        return const Icon(
-                          Icons.store,
-                          size: 30,
-                          color: primary,
-                        );
-                      },
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF59B477),
+                        shape: BoxShape.circle,
+                      ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'SAVORA Owner',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          color: textColor,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF59B477),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          const Text(
-                            'Outlet Buka',
-                            style: TextStyle(
-                              color: primary,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                _headerIcon(Icons.notifications_none, showDot: true),
-                const SizedBox(width: 8),
-                PopupMenuButton<String>(
-                  tooltip: 'Menu Owner',
-                  onSelected: (value) {
-                    if (value == 'logout') {
-                      _showLogoutDialog();
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    const PopupMenuItem<String>(
-                      value: 'logout',
-                      child: Row(
-                        children: [
-                          Icon(Icons.logout, color: Colors.red),
-                          SizedBox(width: 10),
-                          Text('Logout'),
-                        ],
+                    const SizedBox(width: 6),
+                    const Text(
+                      'Outlet Buka',
+                      style: TextStyle(
+                        color: primary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
-                  child: const CircleAvatar(
-                    radius: 22,
-                    backgroundColor: Color(0xFFDCE8DF),
-                    child: CircleAvatar(
-                      radius: 19,
-                      backgroundColor: Colors.white,
-                      child: Icon(
-                        Icons.person,
-                        color: primary,
-                        size: 25,
-                      ),
-                    ),
-                  ),
                 ),
               ],
             ),
-          );
-        }
+          ),
+          _headerIcon(Icons.notifications_none, showDot: true),
+          const SizedBox(width: 8),
+          PopupMenuButton<String>(
+            tooltip: 'Menu Owner',
+            onSelected: (value) {
+              if (value == 'logout') {
+                _showLogoutDialog();
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem<String>(
+                value: 'logout',
+                child: Row(
+                  children: [
+                    Icon(Icons.logout, color: Colors.red),
+                    SizedBox(width: 10),
+                    Text('Logout'),
+                  ],
+                ),
+              ),
+            ],
+            child: const CircleAvatar(
+              radius: 22,
+              backgroundColor: Color(0xFFDCE8DF),
+              child: CircleAvatar(
+                radius: 19,
+                backgroundColor: Colors.white,
+                child: Icon(Icons.person, color: primary, size: 25),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _headerIcon(IconData icon, {bool showDot = false}) {
     return Stack(
@@ -537,8 +554,6 @@ class _OwnerHomeState extends State<OwnerHome> {
       ),
       child: Row(
         children: [
-          
-          
           const SizedBox(width: 12),
           const Expanded(
             child: Column(
@@ -587,43 +602,42 @@ class _OwnerHomeState extends State<OwnerHome> {
     );
   }
 
-
-              Widget _buildSectionTitle(
-                String title,
-                String action, {
-                required VoidCallback onTap,
-              }) {
-                return Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                          color: textColor,
-                        ),
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: onTap,
-                      child: Row(
-                        children: [
-                          Text(
-                            action,
-                            style: const TextStyle(
-                              color: primary,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
-                            ),
-                          ),
-                          const Icon(Icons.chevron_right, color: primary),
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-              }
+  Widget _buildSectionTitle(
+    String title,
+    String action, {
+    required VoidCallback onTap,
+  }) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: textColor,
+            ),
+          ),
+        ),
+        GestureDetector(
+          onTap: onTap,
+          child: Row(
+            children: [
+              Text(
+                action,
+                style: const TextStyle(
+                  color: primary,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: primary),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 
   // ================= STOCK CARD =================
 
@@ -971,4 +985,14 @@ class _OwnerHomeState extends State<OwnerHome> {
       ),
     );
   }
+
+Future<void> _initializeDashboard() async {
+  await Future.delayed(const Duration(milliseconds: 3000));
+
+  if (!mounted) return;
+
+  setState(() {
+    _isLoading = false;
+  });
+}
 }
