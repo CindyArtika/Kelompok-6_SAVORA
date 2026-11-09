@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:tubes_pemmob/screen/auth/daftar.dart';
-import 'package:tubes_pemmob/owner/owner_home.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -32,89 +31,92 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-              Future<void> _login() async {
-          if (!_formKey.currentState!.validate()) return;
+           
 
-          setState(() {
-            _isLoading = true;
-          });
+Future<void> _login() async {
+  if (!_formKey.currentState!.validate()) return;
 
-          try {
-            final credential =
-                await FirebaseAuth.instance.signInWithEmailAndPassword(
-              email: _emailController.text.trim(),
-              password: _passwordController.text.trim(),
-            );
+  setState(() {
+    _isLoading = true;
+  });
 
-            debugPrint('LOGIN BERHASIL: ${credential.user?.email}');
+  try {
+    await FirebaseAuth.instance.signInWithEmailAndPassword(
+      email: _emailController.text.trim(),
+      password: _passwordController.text.trim(),
+    );
 
-            if (!mounted) return;
+    if (!mounted) return;
 
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const OwnerHome(),
-              ),
-              (route) => false,
-            );
-          } on FirebaseAuthException catch (e) {
-            String message = 'Terjadi kesalahan saat login.';
+    // Kembali ke AuthGate sebagai halaman utama
+    Navigator.of(context, rootNavigator: true)
+        .popUntil((route) => route.isFirst);
 
-            if (e.code == 'user-not-found') {
-              message = 'Akun tidak ditemukan.';
-            } else if (e.code == 'wrong-password') {
-              message = 'Password yang dimasukkan salah.';
-            } else if (e.code == 'invalid-email') {
-              message = 'Format email tidak valid.';
-            } else if (e.code == 'invalid-credential') {
-              message = 'Email atau password salah.';
-            } else if (e.code == 'too-many-requests') {
-              message = 'Terlalu banyak percobaan. Coba lagi nanti.';
-            }
+  } on FirebaseAuthException catch (e) {
+    String message = 'Login gagal. Silakan coba kembali.';
 
-            _showMessage(message);
-          } catch (e) {
-            debugPrint('LOGIN ERROR: $e');
-            _showMessage('Login gagal. Silakan coba kembali.');
-          } finally {
-            if (mounted) {
-              setState(() {
-                _isLoading = false;
-              });
-            }
-          }
-        }
-          Future<void> _signInWithGoogle() async {
-    setState(() {
-      _isGoogleLoading = true;
-    });
+    if (e.code == 'user-not-found' ||
+        e.code == 'invalid-credential') {
+      message = 'Email atau password salah.';
+    } else if (e.code == 'wrong-password') {
+      message = 'Password salah.';
+    } else if (e.code == 'too-many-requests') {
+      message = 'Terlalu banyak percobaan. Coba lagi nanti.';
+    } else if (e.code == 'network-request-failed') {
+      message = 'Periksa koneksi internet.';
+    }
 
-    try {
-      final GoogleSignIn googleSignIn = GoogleSignIn.instance;
-
-      await googleSignIn.initialize();
-
-      final GoogleSignInAccount googleUser =
-          await googleSignIn.authenticate();
-
-      final GoogleSignInAuthentication googleAuth =
-          googleUser.authentication;
-
-      final credential = GoogleAuthProvider.credential(
-        idToken: googleAuth.idToken,
-      );
-
-      await FirebaseAuth.instance.signInWithCredential(credential);
-    } catch (e) {
-      _showMessage('Login dengan Google gagal. Silakan coba kembali.');
-        } finally {
-      if (mounted) {
-        setState(() {
-          _isGoogleLoading = false;
-        });
-      }
+    _showMessage(message);
+  } catch (e) {
+    _showMessage('Terjadi kesalahan. Silakan coba kembali.');
+  } finally {
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
+}
+
+        
+Future<void> _signInWithGoogle() async {
+  setState(() {
+    _isGoogleLoading = true;
+  });
+
+  try {
+    final GoogleSignIn googleSignIn = GoogleSignIn.instance;
+
+    await googleSignIn.initialize();
+
+    final GoogleSignInAccount googleUser =
+        await googleSignIn.authenticate();
+
+    final GoogleSignInAuthentication googleAuth =
+        googleUser.authentication;
+
+    final credential = GoogleAuthProvider.credential(
+      idToken: googleAuth.idToken,
+    );
+
+await FirebaseAuth.instance.signInWithCredential(credential);
+if (!mounted) return;
+
+Navigator.of(context, rootNavigator: true)
+    .popUntil((route) => route.isFirst);
+  } catch (e) {
+    debugPrint('GOOGLE LOGIN ERROR: $e');
+    _showMessage('Login dengan Google gagal. Silakan coba kembali.');
+
+  } finally {
+    if (mounted) {
+      setState(() {
+        _isGoogleLoading = false;
+      });
+    }
+  }
+}
+
 
   Future<void> _resetPassword() async {
     final email = _emailController.text.trim();
@@ -387,7 +389,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: 7),
 
                           const Text(
-                            'Silakan masukkan akun Admin atau Owner.',
+                            'Silakan masukkan akun Admin atau Admin.',
                             style: TextStyle(
                               color: Color(0xFF879184),
                               fontSize: 13,

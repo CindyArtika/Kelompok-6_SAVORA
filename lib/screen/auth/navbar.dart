@@ -1,6 +1,6 @@
 
 import 'package:flutter/material.dart';
-import 'package:tubes_pemmob/owner/owner_home.dart';
+import 'package:tubes_pemmob/admin/admin_home.dart';
 
 class Navbar extends StatefulWidget {
   const Navbar({super.key});
@@ -16,7 +16,7 @@ class _NavbarState extends State<Navbar> {
   static const Color inactive = Color(0xFF526258);
 
   late final List<Widget> _pages = [
-    const OwnerHome(),
+    const AdminHome(),
     const _PlaceholderPage(title: 'Bahan'),
     const _PlaceholderPage(title: 'Resep'),
     const _PlaceholderPage(title: 'Pengadaan'),

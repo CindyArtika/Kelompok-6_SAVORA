@@ -1,9 +1,13 @@
 
 import 'package:flutter/material.dart';
-import 'splash_screen.dart';
 
 class IntroSplashScreen extends StatefulWidget {
-  const IntroSplashScreen({super.key});
+  final VoidCallback onFinished;
+
+  const IntroSplashScreen({
+    super.key,
+    required this.onFinished,
+  });
 
   @override
   State<IntroSplashScreen> createState() => _IntroSplashScreenState();
@@ -43,13 +47,7 @@ class _IntroSplashScreenState extends State<IntroSplashScreen>
 
     Future.delayed(const Duration(seconds: 8), () {
       if (!mounted) return;
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const SplashScreen(),
-        ),
-      );
+      widget.onFinished();
     });
   }
 

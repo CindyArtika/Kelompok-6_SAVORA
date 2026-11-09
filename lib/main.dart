@@ -1,8 +1,6 @@
-
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:tubes_pemmob/intro_splash_screen.dart';
-
+import 'package:tubes_pemmob/auth_gate.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,7 +23,7 @@ class SavoraApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const IntroSplashScreen(),
+      home: const AuthGate(),
     );
   }
 }
