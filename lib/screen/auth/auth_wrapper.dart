@@ -2,7 +2,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:tubes_pemmob/screen/auth/login.dart';
-import 'package:tubes_pemmob/owner/owner_home.dart';
+import 'package:tubes_pemmob/admin/admin_home.dart';
 import 'package:tubes_pemmob/screen/auth/navbar.dart';
 
 class AuthWrapper extends StatefulWidget {
@@ -15,7 +15,7 @@ class AuthWrapper extends StatefulWidget {
 class _AuthWrapperState extends State<AuthWrapper> {
   late final Stream<User?> _authState;
 
-  static const String ownerEmail = 'owner123@gmail.com';
+  static const String adminEmail = 'admin123@gmail.com';
 
   @override
   void initState() {
@@ -47,13 +47,13 @@ class _AuthWrapperState extends State<AuthWrapper> {
         final user = snapshot.data;
 
         debugPrint('EMAIL LOGIN: ${user?.email}');
-        debugPrint('EMAIL OWNER: $ownerEmail');
+        debugPrint('EMAIL OWNER: $adminEmail');
         if (user == null) {
           return const LoginScreen();
         }
 
-        if (user.email?.trim().toLowerCase() == ownerEmail) {
-          return const OwnerHome();
+        if (user.email?.trim().toLowerCase() == adminEmail) {
+          return const AdminHome();
         }
 
         return const Navbar();
