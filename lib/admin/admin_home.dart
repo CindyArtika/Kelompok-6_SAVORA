@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:tubes_pemmob/widgets/savora_loading.dart';
 import 'package:tubes_pemmob/admin/notification_admin.dart';
 import 'package:tubes_pemmob/admin/profile_admin.dart';
+import 'package:tubes_pemmob/admin/bahan_admin.dart';
 
 class AdminHome extends StatefulWidget {
   const AdminHome({super.key});
@@ -91,18 +92,18 @@ class _AdminHomeState extends State<AdminHome> {
 
   // ================= LOGOUT =================
 
-Future<void> _logout() async {
-  try {
-    await FirebaseAuth.instance.signOut();
+  Future<void> _logout() async {
+    try {
+      await FirebaseAuth.instance.signOut();
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    // AuthGate otomatis menampilkan IntroSplashScreen.
-  } catch (e) {
-    if (!mounted) return;
-    _showMessage('Gagal logout. Silakan coba lagi.');
+      // AuthGate otomatis menampilkan IntroSplashScreen.
+    } catch (e) {
+      if (!mounted) return;
+      _showMessage('Gagal logout. Silakan coba lagi.');
+    }
   }
-}
 
   void _showLogoutDialog() {
     showDialog(
@@ -155,7 +156,11 @@ Future<void> _logout() async {
     return Scaffold(
       backgroundColor: background,
       body: SafeArea(
-        child: _selectedIndex == 0 ? _buildDashboard() : _buildOtherPage(),
+        child: _selectedIndex == 0
+            ? _buildDashboard()
+            : _selectedIndex == 1
+            ? const BahanAdmin()
+            : _buildOtherPage(),
       ),
       bottomNavigationBar: _buildBottomNavigation(),
     );
