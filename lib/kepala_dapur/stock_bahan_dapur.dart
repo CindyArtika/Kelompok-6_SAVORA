@@ -24,10 +24,7 @@ class _StokBahanDapurState extends State<StokBahanDapur> {
 
   final List<String> _categories = [
     'Semua',
-    'Susu',
-    'Kopi',
-    'Gula',
-    'Lainnya',
+    'Bahan Minuman',
     'Pastry',
   ];
 
@@ -146,7 +143,10 @@ class _StokBahanDapurState extends State<StokBahanDapur> {
 
       final matchesCategory =
           _selectedCategory == 'Semua' ||
-          item['category'] == _selectedCategory;
+          (_selectedCategory == 'Bahan Minuman' &&
+              item['category'] != 'Pastry') ||
+          (_selectedCategory == 'Pastry' &&
+              item['category'] == 'Pastry');
 
       final matchesStatus =
           _selectedStatus == 'Semua' ||
@@ -180,7 +180,11 @@ class _StokBahanDapurState extends State<StokBahanDapur> {
               children: [
                 _buildSearch(),
 
-                const SizedBox(height: 18),
+                const SizedBox(height: 16),
+
+                _buildStockSummary(),
+
+                const SizedBox(height: 22),
 
                 _buildCategories(),
 
@@ -191,7 +195,7 @@ class _StokBahanDapurState extends State<StokBahanDapur> {
                       MainAxisAlignment.spaceBetween,
                   children: [
                     const Text(
-                      'Daftar Stok Bahan',
+                      'Daftar Bahan',
                       style: TextStyle(
                         color: primary,
                         fontSize: 17,
@@ -231,28 +235,42 @@ class _StokBahanDapurState extends State<StokBahanDapur> {
 
   Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-      decoration: const BoxDecoration(
-        color: background,
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF143C2D), Color(0xFF285A43)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: primary.withValues(alpha: 0.16),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Row(
         children: [
           Container(
-            width: 48,
-            height: 48,
-            decoration: const BoxDecoration(
-              color: lightGreen,
-              shape: BoxShape.circle,
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.18),
+              ),
             ),
             child: const Icon(
-              Icons.inventory_2_outlined,
-              color: primary,
-              size: 25,
+              Icons.inventory_2_rounded,
+              color: Colors.white,
+              size: 28,
             ),
           ),
-
-          const SizedBox(width: 12),
-
+          const SizedBox(width: 14),
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -260,20 +278,147 @@ class _StokBahanDapurState extends State<StokBahanDapur> {
                 Text(
                   'Stok Bahan',
                   style: TextStyle(
-                    color: primary,
-                    fontSize: 23,
+                    color: Colors.white,
+                    fontSize: 22,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                SizedBox(height: 4),
+                SizedBox(height: 5),
                 Text(
-                  'Pantau ketersediaan bahan operasional dapur.',
+                  'Pantau persediaan bahan minuman dan pastry dapur.',
                   style: TextStyle(
-                    color: muted,
+                    color: Color(0xFFDCE9E0),
                     fontSize: 11,
+                    height: 1.4,
                   ),
                 ),
               ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: Color(0xFFDCE9E0),
+            size: 22,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ================= RINGKASAN STOK =================
+
+  Widget _buildStockSummary() {
+    final total = _stocks.length;
+    final critical =
+        _stocks.where((item) => item['status'] == 'Kritis').length;
+    final low =
+        _stocks.where((item) => item['status'] == 'Menipis').length;
+    final safe =
+        _stocks.where((item) => item['status'] == 'Aman').length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Ringkasan Persediaan',
+          style: TextStyle(
+            color: primary,
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 11),
+        Row(
+          children: [
+            Expanded(
+              child: _summaryCard(
+                label: 'Total Bahan',
+                value: total.toString(),
+                icon: Icons.inventory_2_outlined,
+                color: primary,
+                backgroundColor: const Color(0xFFE8F0EA),
+              ),
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: _summaryCard(
+                label: 'Menipis',
+                value: low.toString(),
+                icon: Icons.trending_down_rounded,
+                color: const Color(0xFFE58B00),
+                backgroundColor: const Color(0xFFFFF3DE),
+              ),
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: _summaryCard(
+                label: 'Kritis',
+                value: critical.toString(),
+                icon: Icons.warning_amber_rounded,
+                color: const Color(0xFFD92D2D),
+                backgroundColor: const Color(0xFFFFE9E9),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '$safe bahan dalam kondisi aman',
+          style: const TextStyle(
+            color: muted,
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _summaryCard({
+    required String label,
+    required String value,
+    required IconData icon,
+    required Color color,
+    required Color backgroundColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(17),
+        border: Border.all(color: const Color(0xFFE8EEE8)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 29,
+            height: 29,
+            decoration: BoxDecoration(
+              color: backgroundColor,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 17),
+          ),
+          const SizedBox(height: 9),
+          Text(
+            value,
+            style: const TextStyle(
+              color: primary,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: muted,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -424,11 +569,13 @@ class _StokBahanDapurState extends State<StokBahanDapur> {
               child: Row(
                 children: [
                   Icon(
-                    Icons.inventory_2_outlined,
-                    size: 19,
-                    color: selected
-                        ? Colors.white
-                        : primary,
+                    category == 'Pastry'
+                        ? Icons.bakery_dining_rounded
+                        : category == 'Bahan Minuman'
+                            ? Icons.local_cafe_rounded
+                            : Icons.grid_view_rounded,
+                    size: 18,
+                    color: selected ? Colors.white : primary,
                   ),
                   const SizedBox(width: 8),
                   Text(

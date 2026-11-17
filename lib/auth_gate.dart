@@ -9,6 +9,7 @@ import 'package:tubes_pemmob/admin/admin_home.dart';
 import 'package:tubes_pemmob/owner/owner_home.dart';
 import 'package:tubes_pemmob/kepala_dapur/dapur_home.dart';
 import 'package:tubes_pemmob/splash_screen.dart';
+import 'package:tubes_pemmob/kasir/kasir_home.dart';
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
@@ -181,7 +182,7 @@ class _UserRoleRouterState extends State<UserRoleRouter> {
         debugPrint('LOGIN UID: ${widget.user.uid}');
         debugPrint('LOGIN ROLE: $role');
 
-        switch (role) {
+       switch (role) {
           case 'owner':
             return const OwnerHome();
 
@@ -191,6 +192,8 @@ class _UserRoleRouterState extends State<UserRoleRouter> {
           case 'kepala_dapur':
             return const DapurHome();
 
+          case 'kasir':
+            return const KasirHome();
           default:
             return Scaffold(
               body: Center(
