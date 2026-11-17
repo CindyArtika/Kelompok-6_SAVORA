@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:tubes_pemmob/widgets/savora_loading.dart';
 import 'package:tubes_pemmob/admin/notification_admin.dart';
 import 'package:tubes_pemmob/admin/profile_admin.dart';
@@ -9,6 +8,7 @@ class AdminHome extends StatefulWidget {
 
   @override
   State<AdminHome> createState() => _AdminHomeState();
+  
 }
 
 class _AdminHomeState extends State<AdminHome> {
@@ -89,52 +89,7 @@ class _AdminHomeState extends State<AdminHome> {
     setState(() {});
   }
 
-  // ================= LOGOUT =================
-
-Future<void> _logout() async {
-  try {
-    await FirebaseAuth.instance.signOut();
-
-    if (!mounted) return;
-
-    // AuthGate otomatis menampilkan IntroSplashScreen.
-  } catch (e) {
-    if (!mounted) return;
-    _showMessage('Gagal logout. Silakan coba lagi.');
-  }
-}
-
-  void _showLogoutDialog() {
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Logout'),
-          content: const Text(
-            'Apakah kamu yakin ingin keluar dari akun Admin?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Batal'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.pop(dialogContext);
-                await _logout();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primary,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Logout'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
+ 
   void _changeTab(int index) {
     setState(() {
       _selectedIndex = index;
@@ -143,24 +98,25 @@ Future<void> _logout() async {
 
   // ================= BUILD =================
 
-  @override
-  Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const SavoraLoading(
-        title: 'Menyiapkan SAVORA Admin',
-        subtitle: 'Menyiapkan dashboard operasional...',
-      );
-    }
-
-    return Scaffold(
-      backgroundColor: background,
-      body: SafeArea(
-        child: _selectedIndex == 0 ? _buildDashboard() : _buildOtherPage(),
-      ),
-      bottomNavigationBar: _buildBottomNavigation(),
+ @override
+Widget build(BuildContext context) {
+  if (_isLoading) {
+    return const SavoraLoading(
+      title: 'Menyiapkan SAVORA Admin',
+      subtitle: 'Menyiapkan dashboard operasional...',
     );
   }
 
+  return Scaffold(
+    backgroundColor: background,
+    body: SafeArea(
+      child: _selectedIndex == 0
+          ? _buildDashboard()
+          : _buildOtherPage(),
+    ),
+    bottomNavigationBar: _buildBottomNavigation(),
+  );
+}
   // ================= DASHBOARD =================
 
   Widget _buildDashboard() {
@@ -311,12 +267,6 @@ Future<void> _logout() async {
                 child: Icon(Icons.person, color: primary, size: 25),
               ),
             ),
-          ),
-          const SizedBox(width: 4),
-          IconButton(
-            onPressed: _showLogoutDialog,
-            tooltip: 'Logout',
-            icon: const Icon(Icons.logout_rounded, color: primary),
           ),
         ],
       ),

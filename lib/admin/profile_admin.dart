@@ -1,7 +1,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:tubes_pemmob/splash_screen.dart';
 
 class ProfileAdmin extends StatefulWidget {
   const ProfileAdmin({super.key});
@@ -215,48 +214,60 @@ class _ProfileAdminState extends State<ProfileAdmin> {
     }
   }
 
-  // LOGOUT
-  Future<void> _logout() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Logout'),
-          content: const Text(
-            'Apakah kamu yakin ingin keluar dari akun Admin?',
+
+Future<void> _logout() async {
+  final confirm = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) {
+      return AlertDialog(
+        title: const Text('Keluar dari akun?'),
+        content: const Text(
+          'Apakah kamu yakin ingin keluar dari akun Admin?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext, false);
+            },
+            child: const Text('Batal'),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Batal'),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(dialogContext, true);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
             ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Logout'),
-            ),
-          ],
-        );
-      },
-    );
+            child: const Text('Logout'),
+          ),
+        ],
+      );
+    },
+  );
 
-    if (confirm != true) return;
+  if (confirm != true) return;
 
-    await _auth.signOut();
+  try {
+    await FirebaseAuth.instance.signOut();
 
     if (!mounted) return;
 
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const SplashScreen(),
+    // Kembali ke halaman utama AuthGate
+    Navigator.of(context, rootNavigator: true)
+        .popUntil((route) => route.isFirst);
+
+  } catch (e) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Gagal logout. Silakan coba lagi.'),
       ),
-      (route) => false,
     );
   }
+}
+
 
   @override
   Widget build(BuildContext context) {
