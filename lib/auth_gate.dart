@@ -1,5 +1,7 @@
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
 import 'package:tubes_pemmob/intro_splash_screen.dart';
 import 'package:tubes_pemmob/widgets/savora_loading.dart';
 import 'package:tubes_pemmob/services/firestore_services.dart';
@@ -7,12 +9,11 @@ import 'package:tubes_pemmob/admin/admin_home.dart';
 import 'package:tubes_pemmob/owner/owner_home.dart';
 import 'package:tubes_pemmob/kepala_dapur/dapur_home.dart';
 import 'package:tubes_pemmob/splash_screen.dart';
+import 'package:tubes_pemmob/kasir/kasir_home.dart';
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
-  // Menandai bahwa IntroSplashScreen sudah pernah dilewati
-  // selama aplikasi ini berjalan.
   static bool introCompleted = false;
 
   @override
@@ -37,15 +38,18 @@ class AuthGate extends StatelessWidget {
 
         final user = snapshot.data;
 
+        // BELUM LOGIN
         if (user == null) {
           return const LoggedOutFlow();
         }
 
-        // Jika aplikasi dibuka dengan sesi login yang masih aktif,
-        // intro dianggap sudah dilewati. Saat logout nanti langsung SplashScreen.
+        // SUDAH LOGIN
         AuthGate.introCompleted = true;
 
-        return UserRoleRouter(user: user);
+        return UserRoleRouter(
+          key: ValueKey(user.uid),
+          user: user,
+        );
       },
     );
   }
@@ -92,7 +96,10 @@ class _LoggedOutFlowState extends State<LoggedOutFlow> {
 class UserRoleRouter extends StatefulWidget {
   final User user;
 
-  const UserRoleRouter({super.key, required this.user});
+  const UserRoleRouter({
+    super.key,
+    required this.user,
+  });
 
   @override
   State<UserRoleRouter> createState() => _UserRoleRouterState();
@@ -104,16 +111,12 @@ class _UserRoleRouterState extends State<UserRoleRouter> {
   @override
   void initState() {
     super.initState();
-    _userDataFuture = FirestoreService().getUserData(widget.user.uid);
+    _loadUserData();
   }
 
-  @override
-  void didUpdateWidget(covariant UserRoleRouter oldWidget) {
-    super.didUpdateWidget(oldWidget);
-
-    if (oldWidget.user.uid != widget.user.uid) {
-      _userDataFuture = FirestoreService().getUserData(widget.user.uid);
-    }
+  void _loadUserData() {
+    _userDataFuture =
+        FirestoreService().getUserData(widget.user.uid);
   }
 
   @override
@@ -129,9 +132,31 @@ class _UserRoleRouterState extends State<UserRoleRouter> {
         }
 
         if (snapshot.hasError) {
-          return const Scaffold(
+          debugPrint('ROLE ROUTER ERROR: ${snapshot.error}');
+
+          return Scaffold(
             body: Center(
-              child: Text('Gagal memuat data akun.'),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    color: Colors.red,
+                    size: 45,
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('Gagal memuat data akun.'),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _loadUserData();
+                      });
+                    },
+                    child: const Text('Coba Lagi'),
+                  ),
+                ],
+              ),
             ),
           );
         }
@@ -148,9 +173,16 @@ class _UserRoleRouterState extends State<UserRoleRouter> {
           );
         }
 
-        final role = data['role']?.toString().trim().toLowerCase();
+        final role = data['role']
+            ?.toString()
+            .trim()
+            .toLowerCase()
+            .replaceAll(' ', '_');
 
-        switch (role) {
+        debugPrint('LOGIN UID: ${widget.user.uid}');
+        debugPrint('LOGIN ROLE: $role');
+
+       switch (role) {
           case 'owner':
             return const OwnerHome();
 
@@ -160,10 +192,14 @@ class _UserRoleRouterState extends State<UserRoleRouter> {
           case 'kepala_dapur':
             return const DapurHome();
 
+          case 'kasir':
+            return const KasirHome();
           default:
-            return const Scaffold(
+            return Scaffold(
               body: Center(
-                child: Text('Role akun tidak valid.'),
+                child: Text(
+                  'Role akun tidak valid: ${data['role']}',
+                ),
               ),
             );
         }
