@@ -3,12 +3,14 @@ import 'package:tubes_pemmob/widgets/savora_loading.dart';
 import 'package:tubes_pemmob/admin/notification_admin.dart';
 import 'package:tubes_pemmob/admin/profile_admin.dart';
 import 'package:tubes_pemmob/admin/bahan_admin.dart';
+
+import 'pengadaan_admin.dart';
+
 class AdminHome extends StatefulWidget {
   const AdminHome({super.key});
 
   @override
   State<AdminHome> createState() => _AdminHomeState();
-  
 }
 
 class _AdminHomeState extends State<AdminHome> {
@@ -89,9 +91,6 @@ class _AdminHomeState extends State<AdminHome> {
     setState(() {});
   }
 
-  // ================= LOGOUT =================
-
-
   void _changeTab(int index) {
     setState(() {
       _selectedIndex = index;
@@ -115,8 +114,10 @@ class _AdminHomeState extends State<AdminHome> {
         child: _selectedIndex == 0
             ? _buildDashboard()
             : _selectedIndex == 1
-                ? const BahanAdmin()
-                : _buildOtherPage(),
+            ? const BahanAdmin()
+            : _selectedIndex == 3
+            ? const PengadaanAdmin()
+            : _buildOtherPage(),
       ),
       bottomNavigationBar: _buildBottomNavigation(),
     );
@@ -141,11 +142,11 @@ class _AdminHomeState extends State<AdminHome> {
                 _buildCriticalStock(),
                 const SizedBox(height: 24),
                 _buildSectionTitle(
-                  'Bahan Perlu Perhatian',
-                  'Lihat semua',
+                  'Bahan Menipis',
+                  'Lihat Semua',
                   onTap: () => _changeTab(1),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 ...bahanMenipis.map(_buildStockCard),
                 const SizedBox(height: 12),
                 _buildProfitCard(),
