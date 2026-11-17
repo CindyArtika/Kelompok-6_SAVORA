@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:tubes_pemmob/widgets/savora_loading.dart';
 import 'package:tubes_pemmob/admin/notification_admin.dart';
 import 'package:tubes_pemmob/admin/profile_admin.dart';
-
+import 'package:tubes_pemmob/admin/bahan_admin.dart';
 class AdminHome extends StatefulWidget {
   const AdminHome({super.key});
 
@@ -89,7 +89,9 @@ class _AdminHomeState extends State<AdminHome> {
     setState(() {});
   }
 
- 
+  // ================= LOGOUT =================
+
+
   void _changeTab(int index) {
     setState(() {
       _selectedIndex = index;
@@ -98,25 +100,28 @@ class _AdminHomeState extends State<AdminHome> {
 
   // ================= BUILD =================
 
- @override
-Widget build(BuildContext context) {
-  if (_isLoading) {
-    return const SavoraLoading(
-      title: 'Menyiapkan SAVORA Admin',
-      subtitle: 'Menyiapkan dashboard operasional...',
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const SavoraLoading(
+        title: 'Menyiapkan SAVORA Admin',
+        subtitle: 'Menyiapkan dashboard operasional...',
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: background,
+      body: SafeArea(
+        child: _selectedIndex == 0
+            ? _buildDashboard()
+            : _selectedIndex == 1
+                ? const BahanAdmin()
+                : _buildOtherPage(),
+      ),
+      bottomNavigationBar: _buildBottomNavigation(),
     );
   }
 
-  return Scaffold(
-    backgroundColor: background,
-    body: SafeArea(
-      child: _selectedIndex == 0
-          ? _buildDashboard()
-          : _buildOtherPage(),
-    ),
-    bottomNavigationBar: _buildBottomNavigation(),
-  );
-}
   // ================= DASHBOARD =================
 
   Widget _buildDashboard() {
@@ -130,30 +135,30 @@ Widget build(BuildContext context) {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildGreeting(),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 _buildSummary(),
                 const SizedBox(height: 22),
                 _buildCriticalStock(),
-                const SizedBox(height: 28),
+                const SizedBox(height: 24),
                 _buildSectionTitle(
-                  'Bahan Menipis',
-                  'Lihat Semua',
+                  'Bahan Perlu Perhatian',
+                  'Lihat semua',
                   onTap: () => _changeTab(1),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
                 ...bahanMenipis.map(_buildStockCard),
-                const SizedBox(height: 18),
+                const SizedBox(height: 12),
                 _buildProfitCard(),
-                const SizedBox(height: 28),
+                const SizedBox(height: 22),
                 const Text(
-                  'Kelola Operasional',
+                  'Aksi Cepat',
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
                     color: textColor,
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
                 _buildQuickActions(),
               ],
             ),
