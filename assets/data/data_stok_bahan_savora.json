@@ -1,0 +1,552 @@
+[
+  {
+    "name": "Susu UHT Full Cream",
+    "stockQty": 2,
+    "unit": "Liter",
+    "category": "Bahan Minuman",
+    "criticalThreshold": 2,
+    "minimumThreshold": 5,
+    "image": "assets/images/Bahan_Minuman/01_susu_uht_full_cream.png",
+    "color": 3824483834
+  },
+  {
+    "name": "Susu Fresh Milk",
+    "stockQty": 3,
+    "unit": "Liter",
+    "category": "Bahan Minuman",
+    "criticalThreshold": 1.5,
+    "minimumThreshold": 3,
+    "image": "assets/images/Bahan_Minuman/02_susu_fresh_milk.png",
+    "color": 4293588215
+  },
+  {
+    "name": "Susu Evaporasi",
+    "stockQty": 2,
+    "unit": "Kaleng",
+    "category": "Bahan Minuman",
+    "criticalThreshold": 0.5,
+    "minimumThreshold": 1.5,
+    "image": "assets/images/Bahan_Minuman/03_susu_evaporasi.png",
+    "color": 4294241763
+  },
+  {
+    "name": "Susu Kental Manis",
+    "stockQty": 2,
+    "unit": "Kaleng",
+    "category": "Bahan Minuman",
+    "criticalThreshold": 0.5,
+    "minimumThreshold": 1.5,
+    "image": "assets/images/Bahan_Minuman/04_susu_kental_manis.png",
+    "color": 4294963419
+  },
+  {
+    "name": "Whipping Cream",
+    "stockQty": 1,
+    "unit": "Liter",
+    "category": "Bahan Minuman",
+    "criticalThreshold": 0.5,
+    "minimumThreshold": 1,
+    "image": "assets/images/Bahan_Minuman/05_whipping_cream.png",
+    "color": 4294307566
+  },
+  {
+    "name": "Biji Kopi",
+    "stockQty": 500,
+    "unit": "Gram",
+    "category": "Bahan Minuman",
+    "criticalThreshold": 500,
+    "minimumThreshold": 1000,
+    "image": "assets/images/Bahan_Minuman/06_biji_kopi.png",
+    "color": 4294503133
+  },
+  {
+    "name": "Bubuk Matcha",
+    "stockQty": 750,
+    "unit": "Gram",
+    "category": "Bahan Minuman",
+    "criticalThreshold": 187.5,
+    "minimumThreshold": 562.5,
+    "image": "assets/images/Bahan_Minuman/07_bubuk_matcha.png",
+    "color": 4293587929
+  },
+  {
+    "name": "Bubuk Cokelat",
+    "stockQty": 1,
+    "unit": "Kg",
+    "category": "Bahan Minuman",
+    "criticalThreshold": 0.25,
+    "minimumThreshold": 0.75,
+    "image": "assets/images/Bahan_Minuman/08_bubuk_cokelat.png",
+    "color": 4294043357
+  },
+  {
+    "name": "Bubuk Red Velvet",
+    "stockQty": 500,
+    "unit": "Gram",
+    "category": "Bahan Minuman",
+    "criticalThreshold": 250.0,
+    "minimumThreshold": 500,
+    "image": "assets/images/Bahan_Minuman/09_bubuk_red_velvet.png",
+    "color": 4294501861
+  },
+  {
+    "name": "Bubuk Taro",
+    "stockQty": 500,
+    "unit": "Gram",
+    "category": "Bahan Minuman",
+    "criticalThreshold": 125.0,
+    "minimumThreshold": 375.0,
+    "image": "assets/images/Bahan_Minuman/10_bubuk_taro.png",
+    "color": 4293978359
+  },
+  {
+    "name": "Air Mineral",
+    "stockQty": 12,
+    "unit": "Botol",
+    "category": "Bahan Minuman",
+    "criticalThreshold": 3.0,
+    "minimumThreshold": 9.0,
+    "image": "assets/images/Bahan_Minuman/air_mineral.png",
+    "color": 4293195002
+  },
+  {
+    "name": "Bubuk Vanilla",
+    "stockQty": 300,
+    "unit": "Gram",
+    "category": "Bahan Minuman",
+    "criticalThreshold": 75.0,
+    "minimumThreshold": 225.0,
+    "image": "assets/images/Bahan_Minuman/bubuk_vanilla.png",
+    "color": 4294964453
+  },
+  {
+    "name": "Es Batu",
+    "stockQty": 5,
+    "unit": "Kg",
+    "category": "Bahan Minuman",
+    "criticalThreshold": 2.5,
+    "minimumThreshold": 5,
+    "image": "assets/images/Bahan_Minuman/es_batu.png",
+    "color": 4293195002
+  },
+  {
+    "name": "Gula Aren",
+    "stockQty": 1,
+    "unit": "Botol",
+    "category": "Bahan Minuman",
+    "criticalThreshold": 0.5,
+    "minimumThreshold": 1,
+    "image": "assets/images/Bahan_Minuman/gula_aren.png",
+    "color": 4294963419
+  },
+  {
+    "name": "Gula Pasir",
+    "stockQty": 5,
+    "unit": "Kg",
+    "category": "Bahan Minuman",
+    "criticalThreshold": 1.25,
+    "minimumThreshold": 3.75,
+    "image": "assets/images/Bahan_Minuman/gula_pasIr.png",
+    "color": 4294964711
+  },
+  {
+    "name": "Jeruk",
+    "stockQty": 2,
+    "unit": "Kg",
+    "category": "Bahan Minuman",
+    "criticalThreshold": 0.5,
+    "minimumThreshold": 1.5,
+    "image": "assets/images/Bahan_Minuman/jeruk.png",
+    "color": 4294963419
+  },
+  {
+    "name": "Lemon",
+    "stockQty": 1,
+    "unit": "Kg",
+    "category": "Bahan Minuman",
+    "criticalThreshold": 0.5,
+    "minimumThreshold": 1,
+    "image": "assets/images/Bahan_Minuman/lemon.png",
+    "color": 4294308824
+  },
+  {
+    "name": "Madu",
+    "stockQty": 1,
+    "unit": "Botol",
+    "category": "Bahan Minuman",
+    "criticalThreshold": 0.25,
+    "minimumThreshold": 0.75,
+    "image": "assets/images/Bahan_Minuman/madu.png",
+    "color": 4294963419
+  },
+  {
+    "name": "Simple Syrup",
+    "stockQty": 1,
+    "unit": "Botol",
+    "category": "Bahan Minuman",
+    "criticalThreshold": 0.25,
+    "minimumThreshold": 0.75,
+    "image": "assets/images/Bahan_Minuman/simple_syrup.png",
+    "color": 4294964711
+  },
+  {
+    "name": "Sirup Caramel",
+    "stockQty": 300,
+    "unit": "ml",
+    "category": "Bahan Minuman",
+    "criticalThreshold": 150.0,
+    "minimumThreshold": 300,
+    "image": "assets/images/Bahan_Minuman/sirup_caramel.png",
+    "color": 4294962650
+  },
+  {
+    "name": "Sirup Hazelnut",
+    "stockQty": 1,
+    "unit": "Botol",
+    "category": "Bahan Minuman",
+    "criticalThreshold": 0.25,
+    "minimumThreshold": 0.75,
+    "image": "assets/images/Bahan_Minuman/sirup_hazelnut.png",
+    "color": 4294503133
+  },
+  {
+    "name": "Sirup Strawberry",
+    "stockQty": 1,
+    "unit": "Botol",
+    "category": "Bahan Minuman",
+    "criticalThreshold": 0.25,
+    "minimumThreshold": 0.75,
+    "image": "assets/images/Bahan_Minuman/sirup_strawberry.png",
+    "color": 4294501861
+  },
+  {
+    "name": "Sirup Vanilla",
+    "stockQty": 1,
+    "unit": "Botol",
+    "category": "Bahan Minuman",
+    "criticalThreshold": 0.25,
+    "minimumThreshold": 0.75,
+    "image": "assets/images/Bahan_Minuman/sirup_vanilla.png",
+    "color": 4294964453
+  },
+  {
+    "name": "Strawberry",
+    "stockQty": 1,
+    "unit": "Kg",
+    "category": "Bahan Minuman",
+    "criticalThreshold": 0.5,
+    "minimumThreshold": 1,
+    "image": "assets/images/Bahan_Minuman/strawberry.png",
+    "color": 4294501861
+  },
+  {
+    "name": "Teh Hijau",
+    "stockQty": 500,
+    "unit": "Gram",
+    "category": "Bahan Minuman",
+    "criticalThreshold": 125.0,
+    "minimumThreshold": 375.0,
+    "image": "assets/images/Bahan_Minuman/teh_hijau.png",
+    "color": 4293587929
+  },
+  {
+    "name": "Teh Hitam",
+    "stockQty": 500,
+    "unit": "Gram",
+    "category": "Bahan Minuman",
+    "criticalThreshold": 125.0,
+    "minimumThreshold": 375.0,
+    "image": "assets/images/Bahan_Minuman/teh_hitam.png",
+    "color": 4294043357
+  },
+  {
+    "name": "Teh Melati",
+    "stockQty": 500,
+    "unit": "Gram",
+    "category": "Bahan Minuman",
+    "criticalThreshold": 125.0,
+    "minimumThreshold": 375.0,
+    "image": "assets/images/Bahan_Minuman/teh_melati.png",
+    "color": 4293587929
+  },
+  {
+    "name": "Alas Kertas Pastry",
+    "stockQty": 2,
+    "unit": "Pack",
+    "category": "Pastry",
+    "criticalThreshold": 0.5,
+    "minimumThreshold": 1.5,
+    "image": "assets/images/Pastry/alas_kertas_pastry.png",
+    "color": 4294963426
+  },
+  {
+    "name": "Box Pastry Sedang",
+    "stockQty": 10,
+    "unit": "Pcs",
+    "category": "Pastry",
+    "criticalThreshold": 5.0,
+    "minimumThreshold": 10,
+    "image": "assets/images/Pastry/box_pastry_sedang.png",
+    "color": 4294963426
+  },
+  {
+    "name": "Brownies",
+    "stockQty": 8,
+    "unit": "Pcs",
+    "category": "Pastry",
+    "criticalThreshold": 2.0,
+    "minimumThreshold": 6.0,
+    "image": "assets/images/Pastry/brownies.png",
+    "color": 4294043357
+  },
+  {
+    "name": "Butter Croissant",
+    "stockQty": 8,
+    "unit": "Pcs",
+    "category": "Pastry",
+    "criticalThreshold": 2.0,
+    "minimumThreshold": 6.0,
+    "image": "assets/images/Pastry/butter_croissant.png",
+    "color": 4294963426
+  },
+  {
+    "name": "Cheese Danish",
+    "stockQty": 5,
+    "unit": "Pcs",
+    "category": "Pastry",
+    "criticalThreshold": 2.5,
+    "minimumThreshold": 5,
+    "image": "assets/images/Pastry/cheese_danish.png",
+    "color": 4294963426
+  },
+  {
+    "name": "Chocolate Croissant",
+    "stockQty": 6,
+    "unit": "Pcs",
+    "category": "Pastry",
+    "criticalThreshold": 1.5,
+    "minimumThreshold": 4.5,
+    "image": "assets/images/Pastry/chocolate_croissant.png",
+    "color": 4294503133
+  },
+  {
+    "name": "Chocolate Danish",
+    "stockQty": 5,
+    "unit": "Pcs",
+    "category": "Pastry",
+    "criticalThreshold": 2.5,
+    "minimumThreshold": 5,
+    "image": "assets/images/Pastry/chocolate_danish.png",
+    "color": 4294503133
+  },
+  {
+    "name": "Cinnamon Roll",
+    "stockQty": 0,
+    "unit": "Pcs",
+    "category": "Pastry",
+    "criticalThreshold": 0,
+    "minimumThreshold": 0,
+    "image": "assets/images/Pastry/cinnamon_roll.png",
+    "color": 4294961625
+  },
+  {
+    "name": "Cookies",
+    "stockQty": 12,
+    "unit": "Pcs",
+    "category": "Pastry",
+    "criticalThreshold": 3.0,
+    "minimumThreshold": 9.0,
+    "image": "assets/images/Pastry/cookies.png",
+    "color": 4294503133
+  },
+  {
+    "name": "Kertas Roti",
+    "stockQty": 2,
+    "unit": "Pack",
+    "category": "Pastry",
+    "criticalThreshold": 0.5,
+    "minimumThreshold": 1.5,
+    "image": "assets/images/Pastry/kertas_roti.png",
+    "color": 4294964711
+  },
+  {
+    "name": "Muffin",
+    "stockQty": 4,
+    "unit": "Pcs",
+    "category": "Pastry",
+    "criticalThreshold": 2.0,
+    "minimumThreshold": 4,
+    "image": "assets/images/Pastry/muffin.png",
+    "color": 4294963426
+  },
+  {
+    "name": "Pain au Chocolat",
+    "stockQty": 5,
+    "unit": "Pcs",
+    "category": "Pastry",
+    "criticalThreshold": 1.25,
+    "minimumThreshold": 3.75,
+    "image": "assets/images/Pastry/pain_au_chocolat.png",
+    "color": 4294503133
+  },
+  {
+    "name": "Paper Bag Pastry",
+    "stockQty": 10,
+    "unit": "Pcs",
+    "category": "Pastry",
+    "criticalThreshold": 2.5,
+    "minimumThreshold": 7.5,
+    "image": "assets/images/Pastry/paper_bag_pastry.png",
+    "color": 4294963426
+  },
+  {
+    "name": "Set Sendok",
+    "stockQty": 2,
+    "unit": "Set",
+    "category": "Pastry",
+    "criticalThreshold": 0.5,
+    "minimumThreshold": 1.5,
+    "image": "assets/images/Pastry/set sendok.png",
+    "color": 4293456106
+  },
+  {
+    "name": "Wadah Plastik Pastry",
+    "stockQty": 8,
+    "unit": "Pcs",
+    "category": "Pastry",
+    "criticalThreshold": 4.0,
+    "minimumThreshold": 8,
+    "image": "assets/images/Pastry/wadah_plastik_pastry.png",
+    "color": 4293195002
+  },
+  {
+    "name": "Aluminium Foil",
+    "stockQty": 2,
+    "unit": "Roll",
+    "category": "Bahan Operasional",
+    "criticalThreshold": 0.5,
+    "minimumThreshold": 1.5,
+    "image": "assets/images/Perlengkapan_Operasional_Dapur/aluminium_foil.png",
+    "color": 4293456106
+  },
+  {
+    "name": "Apron",
+    "stockQty": 4,
+    "unit": "Pcs",
+    "category": "Bahan Operasional",
+    "criticalThreshold": 1.0,
+    "minimumThreshold": 3.0,
+    "image": "assets/images/Perlengkapan_Operasional_Dapur/apron.png",
+    "color": 4293456106
+  },
+  {
+    "name": "Hairnet",
+    "stockQty": 1,
+    "unit": "Pack",
+    "category": "Bahan Operasional",
+    "criticalThreshold": 0.5,
+    "minimumThreshold": 1,
+    "image": "assets/images/Perlengkapan_Operasional_Dapur/hairnet.png",
+    "color": 4293456106
+  },
+  {
+    "name": "Label Tanggal Kedaluwarsa",
+    "stockQty": 1,
+    "unit": "Pack",
+    "category": "Bahan Operasional",
+    "criticalThreshold": 0.25,
+    "minimumThreshold": 0.75,
+    "image": "assets/images/Perlengkapan_Operasional_Dapur/label_tanggal_kedaluwarsa.png",
+    "color": 4294964711
+  },
+  {
+    "name": "Lap Dapur",
+    "stockQty": 5,
+    "unit": "Pcs",
+    "category": "Bahan Operasional",
+    "criticalThreshold": 1.25,
+    "minimumThreshold": 3.75,
+    "image": "assets/images/Perlengkapan_Operasional_Dapur/lap_dapur.png",
+    "color": 4293456106
+  },
+  {
+    "name": "Masker",
+    "stockQty": 2,
+    "unit": "Box",
+    "category": "Bahan Operasional",
+    "criticalThreshold": 0.5,
+    "minimumThreshold": 1.5,
+    "image": "assets/images/Perlengkapan_Operasional_Dapur/masker.png",
+    "color": 4293195002
+  },
+  {
+    "name": "Plastik Sampah",
+    "stockQty": 1,
+    "unit": "Roll",
+    "category": "Bahan Operasional",
+    "criticalThreshold": 0.5,
+    "minimumThreshold": 1,
+    "image": "assets/images/Perlengkapan_Operasional_Dapur/plastik_sampah.png",
+    "color": 4293456106
+  },
+  {
+    "name": "Plastik Wrap",
+    "stockQty": 2,
+    "unit": "Roll",
+    "category": "Bahan Operasional",
+    "criticalThreshold": 0.5,
+    "minimumThreshold": 1.5,
+    "image": "assets/images/Perlengkapan_Operasional_Dapur/plastik_wrap.png",
+    "color": 4293195002
+  },
+  {
+    "name": "Sabun Cuci Piring",
+    "stockQty": 1,
+    "unit": "Botol",
+    "category": "Bahan Operasional",
+    "criticalThreshold": 0.5,
+    "minimumThreshold": 1,
+    "image": "assets/images/Perlengkapan_Operasional_Dapur/sabun_cuci_piring.png",
+    "color": 4293195002
+  },
+  {
+    "name": "Sarung Tangan Plastik",
+    "stockQty": 2,
+    "unit": "Box",
+    "category": "Bahan Operasional",
+    "criticalThreshold": 0.5,
+    "minimumThreshold": 1.5,
+    "image": "assets/images/Perlengkapan_Operasional_Dapur/sarung_tangan_plastik.png",
+    "color": 4293456106
+  },
+  {
+    "name": "Spidol Label",
+    "stockQty": 3,
+    "unit": "Pcs",
+    "category": "Bahan Operasional",
+    "criticalThreshold": 0.75,
+    "minimumThreshold": 2.25,
+    "image": "assets/images/Perlengkapan_Operasional_Dapur/spidol_label.png",
+    "color": 4293456106
+  },
+  {
+    "name": "Spons Cuci",
+    "stockQty": 5,
+    "unit": "Pcs",
+    "category": "Bahan Operasional",
+    "criticalThreshold": 1.25,
+    "minimumThreshold": 3.75,
+    "image": "assets/images/Perlengkapan_Operasional_Dapur/spons_cuci.png",
+    "color": 4293456106
+  },
+  {
+    "name": "Wadah Penyimpanan Bahan",
+    "stockQty": 4,
+    "unit": "Pcs",
+    "category": "Bahan Operasional",
+    "criticalThreshold": 1.0,
+    "minimumThreshold": 3.0,
+    "image": "assets/images/Perlengkapan_Operasional_Dapur/wadah_penyimpanan_bahan.png",
+    "color": 4293195002
+  }
+]
