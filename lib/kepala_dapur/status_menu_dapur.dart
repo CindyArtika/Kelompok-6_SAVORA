@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:tubes_pemmob/services/menu_firestore_service.dart';
 
 class StatusMenuDapur extends StatefulWidget {
   final List<Map<String, String>> menus;
   final void Function(Map<String, String> menu, String newStatus)
-      onStatusChanged;
-
-  // Hubungkan callback ini ke halaman detail resep yang sudah kamu buat.
+  onStatusChanged;
   final void Function(Map<String, String> menu)? onViewRecipe;
 
   const StatusMenuDapur({
@@ -24,36 +23,38 @@ class _StatusMenuDapurState extends State<StatusMenuDapur> {
   static const Color primary = Color(0xFF143C2D);
   static const Color textColor = Color(0xFF17212D);
   static const Color muted = Color(0xFF758078);
-  static const Color background = Color(0xFFF3F7F4);
+  static const Color background = Color(0xFFF4F8F5);
   static const Color green = Color(0xFF21834B);
   static const Color greenBg = Color(0xFFE4F5E9);
   static const Color red = Color(0xFFC74638);
   static const Color redBg = Color(0xFFFFE8E5);
 
   final TextEditingController _searchController = TextEditingController();
-
-  String _selectedFilter = 'Semua';
+  List<Map<String, String>> _liveMenus = [];
+  String _selectedCategory = 'Semua';
+  String _selectedStatus = 'Semua';
   String _searchQuery = '';
 
-  final List<String> _filters = ['Semua', 'Tersedia', 'Habis'];
+  final List<String> _categories = ['Semua', 'Minuman', 'Pastry'];
+  final List<String> _statuses = ['Semua', 'Tersedia', 'Habis'];
 
   List<Map<String, String>> get _filteredMenus {
-    return widget.menus.where((menu) {
-      final statusMatch = _selectedFilter == 'Semua' ||
-          menu['status'] == _selectedFilter;
-
-      final name = (menu['name'] ?? '').toLowerCase();
-      final searchMatch = name.contains(_searchQuery.toLowerCase());
-
-      return statusMatch && searchMatch;
+    return _liveMenus.where((menu) {
+      final categoryMatch =
+          _selectedCategory == 'Semua' || menu['category'] == _selectedCategory;
+      final statusMatch =
+          _selectedStatus == 'Semua' || menu['status'] == _selectedStatus;
+      final searchMatch = (menu['name'] ?? '').toLowerCase().contains(
+        _searchQuery.toLowerCase(),
+      );
+      return categoryMatch && statusMatch && searchMatch;
     }).toList();
   }
 
   int get _totalTersedia =>
-      widget.menus.where((menu) => menu['status'] == 'Tersedia').length;
-
+      _liveMenus.where((m) => m['status'] == 'Tersedia').length;
   int get _totalHabis =>
-      widget.menus.where((menu) => menu['status'] == 'Habis').length;
+      _liveMenus.where((m) => m['status'] == 'Habis').length;
 
   @override
   void dispose() {
@@ -63,9 +64,21 @@ class _StatusMenuDapurState extends State<StatusMenuDapur> {
 
   @override
   Widget build(BuildContext context) {
-    final filteredMenus = _filteredMenus;
-
-    return Column(
+    return StreamBuilder(
+      stream: MenuFirestoreService.watchMenus(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const Center(child: Text('Gagal memuat status menu.'));
+        }
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        _liveMenus = snapshot.data!.docs.map((doc) {
+          final data = doc.data();
+          return data.map((key, value) => MapEntry(key, value?.toString() ?? ''));
+        }).toList();
+        final filteredMenus = _filteredMenus;
+        return Column(
       children: [
         _pageHeader(),
         Expanded(
@@ -78,7 +91,8 @@ class _StatusMenuDapurState extends State<StatusMenuDapur> {
                 const SizedBox(height: 18),
                 _buildSummary(),
                 const SizedBox(height: 22),
-                _buildFilter(),
+                _buildFilters(),
+                const SizedBox(height: 16),
                 const SizedBox(height: 16),
                 if (filteredMenus.isEmpty)
                   _buildEmptyState()
@@ -89,40 +103,16 @@ class _StatusMenuDapurState extends State<StatusMenuDapur> {
           ),
         ),
       ],
+        );
+      },
     );
   }
 
-  // HEADER HALAMAN
   Widget _pageHeader() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: primary.withValues(alpha: 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
       child: Row(
         children: [
-          Container(
-            width: 43,
-            height: 43,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE8F2E9),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(
-              Icons.local_cafe_rounded,
-              color: primary,
-              size: 23,
-            ),
-          ),
-          const SizedBox(width: 12),
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -131,19 +121,29 @@ class _StatusMenuDapurState extends State<StatusMenuDapur> {
                   'Status Menu',
                   style: TextStyle(
                     color: primary,
-                    fontSize: 21,
+                    fontSize: 23,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                SizedBox(height: 3),
+                SizedBox(height: 5),
                 Text(
-                  'Pantau ketersediaan menu minuman.',
-                  style: TextStyle(
-                    color: muted,
-                    fontSize: 11,
-                  ),
+                  'Pantau ketersediaan seluruh menu SAVORA.',
+                  style: TextStyle(color: muted, fontSize: 11),
                 ),
               ],
+            ),
+          ),
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE5F0E3),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: const Icon(
+              Icons.local_cafe_rounded,
+              color: primary,
+              size: 24,
             ),
           ),
         ],
@@ -151,7 +151,6 @@ class _StatusMenuDapurState extends State<StatusMenuDapur> {
     );
   }
 
-  // PENCARIAN MENU
   Widget _buildSearchField() {
     return Container(
       height: 52,
@@ -160,13 +159,6 @@ class _StatusMenuDapurState extends State<StatusMenuDapur> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(17),
         border: Border.all(color: const Color(0xFFE7EEE9)),
-        boxShadow: [
-          BoxShadow(
-            color: primary.withValues(alpha: 0.035),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
       ),
       child: Row(
         children: [
@@ -175,16 +167,10 @@ class _StatusMenuDapurState extends State<StatusMenuDapur> {
           Expanded(
             child: TextField(
               controller: _searchController,
-              onChanged: (value) {
-                setState(() => _searchQuery = value.trim());
-              },
-              style: const TextStyle(
-                color: textColor,
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-              ),
+              onChanged: (value) => setState(() => _searchQuery = value.trim()),
+              style: const TextStyle(color: textColor, fontSize: 13),
               decoration: const InputDecoration(
-                hintText: 'Cari menu minuman...',
+                hintText: 'Cari nama menu...',
                 hintStyle: TextStyle(color: muted, fontSize: 13),
                 border: InputBorder.none,
                 isDense: true,
@@ -205,27 +191,26 @@ class _StatusMenuDapurState extends State<StatusMenuDapur> {
     );
   }
 
-  // RINGKASAN JUMLAH MENU
   Widget _buildSummary() {
     return Row(
       children: [
         Expanded(
           child: _summaryCard(
-            icon: Icons.local_cafe_rounded,
+            icon: Icons.check_circle_rounded,
             title: 'Tersedia',
             total: _totalTersedia,
             color: green,
-            bgColor: const Color(0xFFE5F5EB),
+            bgColor: greenBg,
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: _summaryCard(
-            icon: Icons.block_rounded,
+            icon: Icons.cancel_rounded,
             title: 'Habis',
             total: _totalHabis,
             color: red,
-            bgColor: const Color(0xFFFFE9E6),
+            bgColor: redBg,
           ),
         ),
       ],
@@ -240,28 +225,21 @@ class _StatusMenuDapurState extends State<StatusMenuDapur> {
     required Color bgColor,
   }) {
     return Container(
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: primary.withValues(alpha: 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Row(
         children: [
           Container(
-            width: 42,
-            height: 42,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
               color: bgColor,
               borderRadius: BorderRadius.circular(13),
             ),
-            child: Icon(icon, color: color, size: 22),
+            child: Icon(icon, color: color, size: 21),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -293,99 +271,131 @@ class _StatusMenuDapurState extends State<StatusMenuDapur> {
     );
   }
 
-  // FILTER SEMUA, TERSEDIA, HABIS
-  Widget _buildFilter() {
-    return Column(
+  Widget _buildFilters() {
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Filter Menu',
-          style: TextStyle(
-            color: textColor,
-            fontSize: 14,
-            fontWeight: FontWeight.w800,
+        Expanded(
+          child: _filterDropdown(
+            title: 'Kategori Menu',
+            selectedValue: _selectedCategory,
+            values: _categories,
+            onChanged: (value) {
+              setState(() => _selectedCategory = value);
+            },
           ),
         ),
-        const SizedBox(height: 11),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: _filters.map((filter) {
-              final isSelected = _selectedFilter == filter;
-
-              return Padding(
-                padding: const EdgeInsets.only(right: 9),
-                child: ChoiceChip(
-                  label: Text(filter),
-                  selected: isSelected,
-                  onSelected: (_) {
-                    setState(() => _selectedFilter = filter);
-                  },
-                  selectedColor: primary,
-                  backgroundColor: Colors.white,
-                  labelStyle: TextStyle(
-                    color: isSelected ? Colors.white : muted,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                  side: BorderSide(
-                    color: isSelected
-                        ? primary
-                        : const Color(0xFFE2EAE4),
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 13,
-                    vertical: 8,
-                  ),
-                  showCheckmark: false,
-                ),
-              );
-            }).toList(),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _filterDropdown(
+            title: 'Status Menu',
+            selectedValue: _selectedStatus,
+            values: _statuses,
+            onChanged: (value) {
+              setState(() => _selectedStatus = value);
+            },
           ),
         ),
       ],
     );
   }
 
-  // KARTU MENU - TEKAN KARTU/PANAH UNTUK MEMBUKA DETAIL
+  Widget _filterDropdown({
+    required String title,
+    required String selectedValue,
+    required List<String> values,
+    required ValueChanged<String> onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: textColor,
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          height: 48,
+          padding: const EdgeInsets.symmetric(horizontal: 11),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE2EAE4)),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: selectedValue,
+              isExpanded: true,
+              icon: const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: primary,
+                size: 21,
+              ),
+              style: const TextStyle(
+                color: primary,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+              items: values.map((value) {
+                return DropdownMenuItem<String>(
+                  value: value,
+                  child: Text(value, overflow: TextOverflow.ellipsis),
+                );
+              }).toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  onChanged(value);
+                }
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _menuCard(Map<String, String> menu) {
     final isAvailable = menu['status'] == 'Tersedia';
     final statusColor = isAvailable ? green : red;
-    final statusBgColor = isAvailable ? greenBg : redBg;
+    final statusBg = isAvailable ? greenBg : redBg;
+    final imagePath = menu['image'] ?? '';
 
     return InkWell(
       onTap: () => _showMenuDetail(menu),
       borderRadius: BorderRadius.circular(19),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 13),
-        padding: const EdgeInsets.all(13),
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(19),
           boxShadow: [
             BoxShadow(
-              color: primary.withValues(alpha: 0.045),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+              color: primary.withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
             ),
           ],
         ),
         child: Row(
           children: [
-            Container(
-              width: 54,
-              height: 54,
-              decoration: BoxDecoration(
-                color: const Color(0xFFEAF3E9),
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: const Icon(
-                Icons.local_cafe_rounded,
-                color: primary,
-                size: 27,
+            ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: SizedBox(
+                width: 66,
+                height: 66,
+                child: imagePath.isEmpty
+                    ? _imageFallback()
+                    : Image.asset(
+                        imagePath,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            _imageFallback(),
+                      ),
               ),
             ),
             const SizedBox(width: 13),
@@ -399,252 +409,233 @@ class _StatusMenuDapurState extends State<StatusMenuDapur> {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: textColor,
-                      fontSize: 14,
+                      fontSize: 13,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 5),
+                  Text(
+                    menu['category'] ?? '',
+                    style: const TextStyle(color: muted, fontSize: 10),
+                  ),
+                  const SizedBox(height: 7),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 9,
                       vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      color: statusBgColor,
+                      color: statusBg,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          isAvailable
-                              ? Icons.check_circle_rounded
-                              : Icons.cancel_rounded,
-                          size: 12,
-                          color: statusColor,
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          menu['status'] ?? 'Tidak diketahui',
-                          style: TextStyle(
-                            color: statusColor,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      menu['status'] ?? 'Tersedia',
+                      style: TextStyle(
+                        color: statusColor,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-            Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF0F6F1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.chevron_right_rounded,
-                color: primary,
-                size: 23,
-              ),
-            ),
+            const Icon(Icons.chevron_right_rounded, color: primary, size: 23),
           ],
         ),
       ),
     );
   }
 
-  // POPUP DETAIL MENU DARI BAWAH
-  void _showMenuDetail(Map<String, String> menu) {
-    final pageContext = context;
-    final isAvailable = menu['status'] == 'Tersedia';
-    final statusColor = isAvailable ? green : red;
-    final statusBgColor = isAvailable ? greenBg : redBg;
+  Widget _imageFallback() => Container(
+    color: const Color(0xFFEAF3E9),
+    alignment: Alignment.center,
+    child: const Icon(Icons.local_cafe_rounded, color: primary, size: 27),
+  );
 
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withValues(alpha: 0.42),
-      builder: (sheetContext) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.57,
-          minChildSize: 0.42,
-          maxChildSize: 0.88,
-          expand: false,
-          builder: (context, scrollController) {
-            return Container(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(
-                  top: Radius.circular(28),
+ 
+void _showMenuDetail(Map<String, String> menu) {
+  final isAvailable = menu['status'] == 'Tersedia';
+  final statusColor = isAvailable ? green : red;
+  final statusBg = isAvailable ? greenBg : redBg;
+  final imagePath = menu['image'] ?? '';
+
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (sheetContext) => DraggableScrollableSheet(
+      initialChildSize: 0.68,
+      minChildSize: 0.48,
+      maxChildSize: 0.9,
+      expand: false,
+      builder: (context, scrollController) => Container(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(28),
+          ),
+        ),
+        child: ListView(
+          controller: scrollController,
+          children: [
+            // HANDLE POPUP
+            Center(
+              child: Container(
+                width: 42,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDCE5DE),
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              child: ListView(
-                controller: scrollController,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 42,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFDCE5DE),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Container(
-                        width: 66,
-                        height: 66,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEAF3E9),
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: const Icon(
-                          Icons.local_cafe_rounded,
-                          color: primary,
-                          size: 34,
-                        ),
-                      ),
-                      const SizedBox(width: 13),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              menu['name'] ?? 'Menu',
-                              style: const TextStyle(
-                                color: textColor,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            _statusBadge(
-                              menu['status'] ?? 'Tidak diketahui',
-                              statusColor,
-                              statusBgColor,
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(sheetContext),
-                        icon: const Icon(Icons.close_rounded, color: muted),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 22),
-                  _detailInfoTile(
-                    icon: Icons.inventory_2_outlined,
-                    title: 'Status ketersediaan',
-                    subtitle: isAvailable
-                        ? 'Menu sedang tersedia untuk dipesan.'
-                        : 'Menu sedang habis dan tidak dapat dipesan.',
-                    trailing: Icon(
-                      isAvailable
-                          ? Icons.check_circle_rounded
-                          : Icons.cancel_rounded,
-                      color: statusColor,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  _detailInfoTile(
-                    icon: Icons.menu_book_rounded,
-                    title: 'Resep minuman',
-                    subtitle: 'Lihat bahan, takaran, dan langkah pembuatan.',
-                    trailing: const Icon(
-                      Icons.chevron_right_rounded,
-                      color: primary,
-                    ),
-                    onTap: () {
-                      Navigator.pop(sheetContext);
-                      if (widget.onViewRecipe != null) {
-                        widget.onViewRecipe!(menu);
-                      } else {
-                        ScaffoldMessenger.of(pageContext).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Hubungkan tombol ini ke halaman detail resep.',
-                            ),
-                          ),
-                        );
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(sheetContext);
-                        _confirmMenuStatusChange(pageContext, menu);
-                      },
-                      icon: const Icon(Icons.edit_rounded, size: 18),
-                      label: Text(
-                        isAvailable ? 'Ubah Menjadi Habis' : 'Ubah Menjadi Tersedia',
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primary,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 15),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
+            ),
 
-  Widget _statusBadge(String status, Color color, Color bgColor) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        status,
-        style: TextStyle(
-          color: color,
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
+            const SizedBox(height: 18),
+
+            // GAMBAR MENU
+            Center(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: SizedBox(
+                  width: 150,
+                  height: 150,
+                  child: imagePath.isEmpty
+                      ? _imageFallback()
+                      : Image.asset(
+                          imagePath,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              _imageFallback(),
+                        ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 15),
+
+            // NAMA MENU
+            Text(
+              menu['name'] ?? 'Menu',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: primary,
+                fontSize: 19,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+
+            const SizedBox(height: 5),
+
+            // KATEGORI
+            Center(
+              child: Text(
+                menu['category'] ?? '',
+                style: const TextStyle(
+                  color: muted,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // BADGE STATUS SAAT INI
+            Center(
+              child: _statusBadge(
+                menu['status'] ?? 'Tersedia',
+                statusColor,
+                statusBg,
+              ),
+            ),
+
+            const SizedBox(height: 22),
+
+            // DETAIL RESEP
+            _detailTile(
+              icon: Icons.menu_book_rounded,
+              title: 'Detail Resep',
+              subtitle: 'Lihat bahan, takaran, dan langkah pembuatan menu.',
+              onTap: () {
+                Navigator.pop(sheetContext);
+
+                if (widget.onViewRecipe != null) {
+                  widget.onViewRecipe!(menu);
+                } else {
+                  ScaffoldMessenger.of(this.context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Detail resep belum dihubungkan.'),
+                    ),
+                  );
+                }
+              },
+            ),
+
+            const SizedBox(height: 20),
+
+            // TOMBOL UBAH STATUS
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(sheetContext);
+                  _confirmMenuStatusChange(menu);
+                },
+                icon: const Icon(
+                  Icons.edit_rounded,
+                  size: 18,
+                ),
+                label: Text(
+                  isAvailable
+                      ? 'Ubah Menjadi Habis'
+                      : 'Ubah Menjadi Tersedia',
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
-  Widget _detailInfoTile({
+
+  Widget _statusBadge(String status, Color color, Color bgColor) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    decoration: BoxDecoration(
+      color: bgColor,
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Text(
+      status,
+      style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w800),
+    ),
+  );
+
+  Widget _detailTile({
     required IconData icon,
     required String title,
     required String subtitle,
-    required Widget trailing,
     VoidCallback? onTap,
   }) {
     return Material(
-      color: const Color(0xFFF3F7F4),
+      color: background,
       borderRadius: BorderRadius.circular(17),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(17),
         child: Padding(
-          padding: const EdgeInsets.all(15),
+          padding: const EdgeInsets.all(14),
           child: Row(
             children: [
               Container(
@@ -681,8 +672,7 @@ class _StatusMenuDapurState extends State<StatusMenuDapur> {
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              trailing,
+              const Icon(Icons.chevron_right_rounded, color: primary),
             ],
           ),
         ),
@@ -690,68 +680,71 @@ class _StatusMenuDapurState extends State<StatusMenuDapur> {
     );
   }
 
-  // KONFIRMASI DAN SIMPAN PERUBAHAN STATUS KE FIRESTORE
-  Future<void> _confirmMenuStatusChange(
-    BuildContext context,
-    Map<String, String> menu,
-  ) async {
+  Future<void> _confirmMenuStatusChange(Map<String, String> menu) async {
     final menuName = menu['name'] ?? 'Menu';
-    final newStatus =
-        menu['status'] == 'Tersedia' ? 'Habis' : 'Tersedia';
+    final newStatus = menu['status'] == 'Tersedia' ? 'Habis' : 'Tersedia';
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Konfirmasi Status Menu',
+          style: TextStyle(fontWeight: FontWeight.w800, color: primary),
+        ),
+        content: Text(
+          'Apakah kamu yakin ingin mengubah status $menuName menjadi $newStatus?',
+          style: const TextStyle(fontSize: 14, height: 1.5, color: textColor),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Batal', style: TextStyle(color: muted)),
           ),
-          title: const Text(
-            'Konfirmasi Status Menu',
-            style: TextStyle(
-              fontWeight: FontWeight.w800,
-              color: primary,
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primary,
+              foregroundColor: Colors.white,
             ),
+            child: const Text('Ya, Ubah Status'),
           ),
-          content: Text(
-            'Apakah kamu yakin ingin mengubah status $menuName menjadi $newStatus?',
-            style: const TextStyle(
-              fontSize: 14,
-              height: 1.5,
-              color: textColor,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text(
-                'Batal',
-                style: TextStyle(color: muted),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              child: const Text('Ya, Ubah Status'),
-            ),
-          ],
-        );
-      },
+        ],
+      ),
     );
 
-    if (confirmed != true || !context.mounted) return;
+    if (confirmed != true || !mounted) return;
 
+    // 1. Simpan status menu terlebih dahulu ke Firestore.
     try {
-      // Simpan pemberitahuan perubahan status untuk Kasir.
-      await FirebaseFirestore.instance
-          .collection('notifikasi_kasir')
-          .add({
+      await MenuFirestoreService.updateStatus(
+        name: menuName,
+        status: newStatus,
+        category: menu['category'],
+        image: menu['image'],
+      );
+    } catch (e) {
+      debugPrint('Gagal memperbarui status menu di Firestore: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.red,
+          content: Text('Status gagal disimpan: $e'),
+        ),
+      );
+      return;
+    }
+
+    // Status sudah berhasil disimpan. Perbarui tampilan Kepala Dapur.
+    if (!mounted) return;
+    setState(() => menu['status'] = newStatus);
+    widget.onStatusChanged(menu, newStatus);
+
+    // 2. Simpan notifikasi secara terpisah agar kegagalan notifikasi
+    // tidak membuat status menu dianggap gagal.
+    try {
+      await FirebaseFirestore.instance.collection('notifikasi_kasir').add({
         'judul': 'Perubahan Ketersediaan Menu',
         'namaMenu': menuName,
         'status': newStatus,
@@ -763,56 +756,34 @@ class _StatusMenuDapurState extends State<StatusMenuDapur> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      if (!context.mounted) return;
-
-      widget.onStatusChanged(menu, newStatus);
-
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 4),
           backgroundColor: primary,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
           content: Text(
-            'Status $menuName berhasil diperbarui menjadi $newStatus dan sudah tercatat di log Kasir.',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              height: 1.4,
-            ),
+            'Status $menuName berhasil diperbarui menjadi $newStatus.',
           ),
         ),
       );
     } catch (e) {
-      if (!context.mounted) return;
-
+      debugPrint('Status tersimpan, tetapi notifikasi Kasir gagal: $e');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           behavior: SnackBarBehavior.floating,
-          backgroundColor: Colors.red.shade700,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          content: const Text(
-            'Gagal menyimpan perubahan status ke log Kasir. Status menu belum diperbarui.',
-            style: TextStyle(color: Colors.white),
+          backgroundColor: Colors.orange.shade800,
+          content: Text(
+            'Status menu berhasil diperbarui, tetapi notifikasi Kasir gagal: $e',
           ),
         ),
       );
     }
   }
 
-  // TAMPILAN JIKA HASIL PENCARIAN/FILTER KOSONG
   Widget _buildEmptyState() {
-    final hasSearch = _searchQuery.isNotEmpty;
-
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 25,
-        vertical: 38,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 38),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(19),
@@ -820,7 +791,7 @@ class _StatusMenuDapurState extends State<StatusMenuDapur> {
       child: Column(
         children: [
           Icon(
-            Icons.local_cafe_outlined,
+            Icons.search_off_rounded,
             size: 43,
             color: muted.withValues(alpha: 0.5),
           ),
@@ -835,15 +806,11 @@ class _StatusMenuDapurState extends State<StatusMenuDapur> {
           ),
           const SizedBox(height: 5),
           Text(
-            hasSearch
+            _searchQuery.isNotEmpty
                 ? 'Tidak ada menu yang cocok dengan "$_searchQuery".'
-                : 'Belum ada menu dengan status $_selectedFilter.',
+                : 'Belum ada menu dengan filter yang dipilih.',
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: muted,
-              fontSize: 12,
-              height: 1.4,
-            ),
+            style: const TextStyle(color: muted, fontSize: 12, height: 1.4),
           ),
         ],
       ),
