@@ -1,5 +1,179 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:tubes_pemmob/services/stock_firestore_service.dart';
+
+class _AjukanBahanDialog extends StatefulWidget {
+  final String namaBahan;
+  final String stokSaatIni;
+  final String satuan;
+  final String? initialQuantity;
+  final String? initialNote;
+  final bool isEditing;
+
+  const _AjukanBahanDialog({
+    required this.namaBahan,
+    required this.stokSaatIni,
+    required this.satuan,
+    this.initialQuantity,
+    this.initialNote,
+    this.isEditing = false,
+  });
+
+  @override
+  State<_AjukanBahanDialog> createState() =>
+      _AjukanBahanDialogState();
+}
+
+class _AjukanBahanDialogState
+    extends State<_AjukanBahanDialog> {
+  final TextEditingController quantityController =
+      TextEditingController();
+
+  final TextEditingController noteController =
+      TextEditingController();
+
+  static const Color primary = Color(0xFF143C2D);
+  static const Color muted = Color(0xFF758078);
+
+  @override
+  void initState() {
+    super.initState();
+    quantityController.text = widget.initialQuantity ?? '';
+    noteController.text = widget.initialNote ?? '';
+  }
+
+  @override
+  void dispose() {
+    quantityController.dispose();
+    noteController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final quantity = quantityController.text.trim();
+    final parsed = double.tryParse(
+      quantity.replaceAll(',', '.'),
+    );
+
+    if (parsed == null || parsed <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Masukkan jumlah kebutuhan yang valid.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    Navigator.of(context).pop({
+      'quantity': quantity,
+      'note': noteController.text.trim(),
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(22),
+      ),
+      title: Text(
+        widget.isEditing ? 'Edit Pengajuan' : 'Ajukan Kebutuhan Stok',
+        style: TextStyle(
+          color: primary,
+          fontSize: 18,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.namaBahan,
+              style: const TextStyle(
+                color: primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              'Stok saat ini: ${widget.stokSaatIni}',
+              style: const TextStyle(
+                color: muted,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 17),
+            TextField(
+              controller: quantityController,
+              keyboardType:
+                  const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: InputDecoration(
+                labelText: 'Jumlah yang dibutuhkan',
+                suffixText: widget.satuan,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(
+                    color: primary,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 13),
+            TextField(
+              controller: noteController,
+              maxLines: 3,
+              decoration: InputDecoration(
+                labelText: 'Catatan (opsional)',
+                hintText:
+                    'Contoh: Dibutuhkan untuk operasional...',
+                alignLabelWithHint: true,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(
+                    color: primary,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text(
+            'Batal',
+            style: TextStyle(color: muted),
+          ),
+        ),
+        ElevatedButton(
+          onPressed: _submit,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: primary,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          child: Text(widget.isEditing ? 'Simpan Perubahan' : 'Kirim Pengajuan'),
+        ),
+      ],
+    );
+  }
+}
 
 class StokBahanDapur extends StatefulWidget {
   const StokBahanDapur({super.key});
@@ -19,6 +193,8 @@ class _StokBahanDapurState extends State<StokBahanDapur> {
   String _searchQuery = '';
   String _selectedCategory = 'Semua';
   String _selectedStatus = 'Semua';
+  String _selectedRequestStatus = 'Semua';
+  int _selectedTab = 0; // 0 = Stok Bahan, 1 = Riwayat Pengajuan
 
   final List<String> _categories = [
     'Semua',
@@ -35,10 +211,6 @@ class _StokBahanDapurState extends State<StokBahanDapur> {
 
   List<Map<String, dynamic>> _stocks = [];
 
-
-  // Riwayat pengajuan masih disimpan lokal selama belum terhubung Firebase.
-  final List<Map<String, dynamic>> _requests = [];
-
   List<Map<String, dynamic>> get _filteredStocks {
     return _stocks.where((item) {
       final name = item['name'].toString().toLowerCase();
@@ -50,6 +222,7 @@ class _StokBahanDapurState extends State<StokBahanDapur> {
 
       return matchesSearch && matchesCategory && matchesStatus;
     }).toList();
+    
   }
 
   @override
@@ -74,52 +247,239 @@ class _StokBahanDapurState extends State<StokBahanDapur> {
             .toList();
         return Container(
           color: background,
-      child: Column(
-        children: [
-          _buildHeader(),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-              children: [
-                _buildSearch(),
-                const SizedBox(height: 16),
-                _buildStockSummary(),
-                const SizedBox(height: 22),
-                _buildCategories(),
-                const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Daftar Bahan',
-                      style: TextStyle(
-                        color: primary,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    Text(
-                      '${_filteredStocks.length} bahan',
-                      style: const TextStyle(color: muted, fontSize: 11),
-                    ),
-                  ],
+          child: Column(
+            children: [
+              _buildHeader(),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                child: _buildSearch(),
+              ),
+              _buildTopTabs(),
+              Expanded(
+                child: _selectedTab == 0
+                    ? _buildStockTab()
+                    : _buildRequestTab(),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildTopTabs() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 8, 18, 4),
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(color: const Color(0xFFE5ECE6)),
+        ),
+        child: Row(
+          children: [
+            _topTabButton('Stok Bahan', Icons.inventory_2_outlined, 0),
+            _topTabButton('Riwayat Pengajuan', Icons.receipt_long_outlined, 1),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _topTabButton(String label, IconData icon, int index) {
+    final selected = _selectedTab == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _selectedTab = index),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 7),
+          decoration: BoxDecoration(
+            color: selected ? primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(26),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 17, color: selected ? Colors.white : primary),
+              const SizedBox(width: 7),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: selected ? Colors.white : primary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-                const SizedBox(height: 12),
-                if (_filteredStocks.isEmpty)
-                  _buildEmptyState()
-                else
-                  ..._filteredStocks.map(_stockCard),
-                if (_requests.isNotEmpty) ...[
-                  const SizedBox(height: 20),
-                  _buildRequestHistory(),
-                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStockTab() {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      children: [
+        _buildStockSummary(),
+        const SizedBox(height: 16),
+        _buildCategories(),
+        const SizedBox(height: 18),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Daftar Bahan',
+              style: TextStyle(
+                color: primary,
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            Text(
+              '${_filteredStocks.length} bahan',
+              style: const TextStyle(color: muted, fontSize: 11),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (_filteredStocks.isEmpty)
+          _buildEmptyState()
+        else
+          ..._filteredStocks.map(_stockCard),
+      ],
+    );
+  }
+
+  Widget _buildRequestTab() {
+    return StreamBuilder(
+      stream: StockFirestoreService.watchMyStockRequests(),
+      builder: (context, requestSnapshot) {
+        if (requestSnapshot.hasError) {
+          return const Center(
+            child: Text('Riwayat pengajuan gagal dimuat.'),
+          );
+        }
+        if (!requestSnapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final allRequests = requestSnapshot.data!.docs
+            .map((doc) => <String, dynamic>{...doc.data(), '_requestId': doc.id})
+            .toList();
+        final requests = allRequests.where((request) {
+          final name = (request['namaBahan'] ?? '').toString().toLowerCase();
+          final matchesSearch = name.contains(_searchQuery.toLowerCase());
+          final status = (request['status'] ?? '').toString().toLowerCase();
+          final selected = _selectedRequestStatus;
+          final matchesStatus = selected == 'Semua' ||
+              (selected == 'Menunggu' && status.contains('menunggu')) ||
+              (selected == 'Disetujui' &&
+                  (status.contains('disetujui') || status.contains('selesai') || status.contains('po dibuat'))) ||
+              (selected == 'Ditolak' && status.contains('ditolak'));
+          return matchesSearch && matchesStatus;
+        }).toList();
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+          children: [
+            _buildRequestFilters(),
+            const SizedBox(height: 18),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Riwayat Pengajuan',
+                  style: TextStyle(
+                    color: primary,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                Text(
+                  '${requests.length} pengajuan',
+                  style: const TextStyle(color: muted, fontSize: 11),
+                ),
               ],
             ),
+            const SizedBox(height: 12),
+            if (requests.isEmpty)
+              _buildEmptyRequests()
+            else
+              _buildRequestHistory(requests),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildRequestFilters() {
+    const filters = ['Semua', 'Menunggu', 'Disetujui', 'Ditolak'];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: filters.map((filter) {
+          final selected = _selectedRequestStatus == filter;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedRequestStatus = filter),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 15,
+                  vertical: 9,
+                ),
+                decoration: BoxDecoration(
+                  color: selected ? primary : Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: selected ? primary : const Color(0xFFE5ECE6),
+                  ),
+                ),
+                child: Text(
+                  filter,
+                  style: TextStyle(
+                    color: selected ? Colors.white : primary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildEmptyRequests() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 55),
+      child: Column(
+        children: const [
+          Icon(Icons.receipt_long_outlined, size: 46, color: Color(0xFF9AA79D)),
+          SizedBox(height: 12),
+          Text(
+            'Belum Ada Pengajuan',
+            style: TextStyle(
+              color: primary,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          SizedBox(height: 5),
+          Text(
+            'Pengajuan kebutuhan bahan akan muncul di sini.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: muted, fontSize: 11),
           ),
         ],
       ),
-        );
-      },
     );
   }
 
@@ -170,115 +530,66 @@ class _StokBahanDapurState extends State<StokBahanDapur> {
 }
 
   Widget _buildStockSummary() {
-    final total = _stocks.length;
     final critical = _stocks.where((e) => e['status'] == 'Kritis').length;
     final low = _stocks.where((e) => e['status'] == 'Menipis').length;
     final safe = _stocks.where((e) => e['status'] == 'Aman').length;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Ringkasan Persediaan',
-          style: TextStyle(
-            color: primary,
-            fontSize: 15,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const SizedBox(height: 11),
-        Row(
+    Widget item(String label, int value, Color dotColor) {
+      return Expanded(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              child: _summaryCard(
-                'Total Bahan',
-                total.toString(),
-                Icons.inventory_2_outlined,
-                primary,
-                const Color(0xFFE8F0EA),
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    color: dotColor,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 5),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: primary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 9),
-            Expanded(
-              child: _summaryCard(
-                'Menipis',
-                low.toString(),
-                Icons.trending_down_rounded,
-                const Color(0xFFE58B00),
-                const Color(0xFFFFF3DE),
-              ),
-            ),
-            const SizedBox(width: 9),
-            Expanded(
-              child: _summaryCard(
-                'Kritis',
-                critical.toString(),
-                Icons.warning_amber_rounded,
-                const Color(0xFFD92D2D),
-                const Color(0xFFFFE9E9),
+            const SizedBox(height: 3),
+            Text(
+              '$value',
+              style: const TextStyle(
+                color: primary,
+                fontSize: 17,
+                height: 1.1,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
-        Text(
-          '$safe bahan dalam kondisi aman',
-          style: const TextStyle(
-            color: muted,
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
-  }
+      );
+    }
 
-  Widget _summaryCard(
-    String label,
-    String value,
-    IconData icon,
-    Color color,
-    Color iconBackground,
-  ) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFFF0F5EF),
         borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: const Color(0xFFE8EEE8)),
+        border: Border.all(color: const Color(0xFFDCE8DC)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Container(
-            width: 29,
-            height: 29,
-            decoration: BoxDecoration(
-              color: iconBackground,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: color, size: 17),
-          ),
-          const SizedBox(height: 9),
-          Text(
-            value,
-            style: const TextStyle(
-              color: primary,
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: muted,
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          item('Aman', safe, const Color(0xFF35A853)),
+          Container(width: 1, height: 32, color: const Color(0xFFD4DED5)),
+          item('Menipis', low, const Color(0xFFF2A900)),
+          Container(width: 1, height: 32, color: const Color(0xFFD4DED5)),
+          item('Kritis', critical, const Color(0xFFE54848)),
         ],
       ),
     );
@@ -305,7 +616,9 @@ class _StokBahanDapurState extends State<StokBahanDapur> {
               controller: _searchController,
               onChanged: (value) => setState(() => _searchQuery = value),
               decoration: InputDecoration(
-                hintText: 'Cari nama bahan...',
+                hintText: _selectedTab == 0
+                    ? 'Cari nama bahan...'
+                    : 'Cari pengajuan...',
                 hintStyle: const TextStyle(color: muted, fontSize: 14),
                 prefixIcon: const Icon(
                   Icons.search_rounded,
@@ -329,7 +642,9 @@ class _StokBahanDapurState extends State<StokBahanDapur> {
         ),
         const SizedBox(width: 10),
         GestureDetector(
-          onTap: _showStatusFilter,
+          onTap: _selectedTab == 0
+              ? _showStatusFilter
+              : _showRequestStatusFilter,
           child: Container(
             width: 52,
             height: 52,
@@ -341,7 +656,8 @@ class _StokBahanDapurState extends State<StokBahanDapur> {
               alignment: Alignment.center,
               children: [
                 const Icon(Icons.tune_rounded, color: primary, size: 25),
-                if (_selectedStatus != 'Semua')
+                if ((_selectedTab == 0 && _selectedStatus != 'Semua') ||
+                    (_selectedTab == 1 && _selectedRequestStatus != 'Semua'))
                   Positioned(
                     right: 11,
                     top: 10,
@@ -363,65 +679,77 @@ class _StokBahanDapurState extends State<StokBahanDapur> {
   }
 
   Widget _buildCategories() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: _categories.map((category) {
-          final selected = _selectedCategory == category;
-          final IconData categoryIcon = switch (category) {
-            'Pastry' => Icons.bakery_dining_rounded,
-            'Bahan Operasional' => Icons.kitchen_rounded,
-            'Bahan Minuman' => Icons.local_cafe_rounded,
-            _ => Icons.grid_view_rounded,
-          };
-
-          return GestureDetector(
-            onTap: () => setState(() => _selectedCategory = category),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              margin: const EdgeInsets.only(right: 9),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 17,
-                vertical: 13,
-              ),
-              decoration: BoxDecoration(
-                color: selected ? primary : Colors.white,
-                borderRadius: BorderRadius.circular(30),
-                border: Border.all(
-                  color: selected ? primary : const Color(0xFFDCE8DC),
-                ),
-                boxShadow: selected
-                    ? []
-                    : [
-                        BoxShadow(
-                          color: primary.withValues(alpha: 0.04),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    categoryIcon,
-                    size: 18,
-                    color: selected ? Colors.white : primary,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    category,
-                    style: TextStyle(
-                      color: selected ? Colors.white : primary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Kategori Bahan',
+              style: TextStyle(
+                color: primary,
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
               ),
             ),
-          );
-        }).toList(),
-      ),
+            const Text(
+              '4 kategori',
+              style: TextStyle(color: muted, fontSize: 10),
+            ),
+          ],
+        ),
+        const SizedBox(height: 9),
+        Row(
+          children: _categories.map((category) {
+            final selected = _selectedCategory == category;
+            return Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  right: category == _categories.last ? 0 : 7,
+                ),
+                child: GestureDetector(
+                  onTap: () => setState(() => _selectedCategory = category),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    height: 56,
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 7),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: selected ? primary : Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: selected ? primary : const Color(0xFFE3EBE3),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: primary.withValues(
+                            alpha: selected ? 0.09 : 0.025,
+                          ),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      category,
+                      maxLines: 2,
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: selected ? Colors.white : primary,
+                        fontSize: 9.5,
+                        height: 1.15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 
@@ -500,6 +828,71 @@ class _StokBahanDapurState extends State<StokBahanDapur> {
 
     if (result != null && mounted) {
       setState(() => _selectedStatus = result);
+    }
+  }
+
+  Future<void> _showRequestStatusFilter() async {
+    const statuses = ['Semua', 'Menunggu', 'Disetujui', 'Ditolak'];
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      ),
+      builder: (sheetContext) {
+        String tempStatus = _selectedRequestStatus;
+        return StatefulBuilder(
+          builder: (context, setSheetState) => Padding(
+            padding: const EdgeInsets.fromLTRB(22, 20, 22, 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Filter Status Pengajuan',
+                  style: TextStyle(
+                    color: primary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ...statuses.map((status) => RadioListTile<String>(
+                  value: status,
+                  // ignore: deprecated_member_use
+                  groupValue: tempStatus,
+                  activeColor: primary,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(status),
+                  // ignore: deprecated_member_use
+                  onChanged: (value) {
+                    if (value != null) setSheetState(() => tempStatus = value);
+                  },
+                )),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(sheetContext, tempStatus),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: const Text('Terapkan Filter'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    if (result != null && mounted) {
+      setState(() => _selectedRequestStatus = result);
     }
   }
 
@@ -702,8 +1095,10 @@ class _StokBahanDapurState extends State<StokBahanDapur> {
                       color: primary,
                     ),
                     title: const Text('Ajukan Kebutuhan Stok'),
-                    onTap: () {
+                    onTap: () async {
                       Navigator.pop(sheetContext);
+                      await Future.delayed(const Duration(milliseconds: 300));
+                      if (!mounted) return;
                       _ajukanBahan(item);
                     },
                   ),
@@ -784,8 +1179,10 @@ class _StokBahanDapurState extends State<StokBahanDapur> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
-                      onPressed: () {
+                      onPressed: () async {
                         Navigator.pop(sheetContext);
+                        await Future.delayed(const Duration(milliseconds: 300));
+                        if (!mounted) return;
                         _ajukanBahan(item);
                       },
                       icon: const Icon(Icons.add_circle_outline),
@@ -842,254 +1239,344 @@ class _StokBahanDapurState extends State<StokBahanDapur> {
     );
   }
 
+  
   Future<void> _ajukanBahan(Map<String, dynamic> item) async {
-    if (item['status'] != 'Kritis' && item['status'] != 'Menipis') return;
+    if (item['status'] != 'Kritis' &&
+        item['status'] != 'Menipis') {
+      return;
+    }
 
-    final quantityController = TextEditingController();
-    final noteController = TextEditingController();
-    final stockParts = (item['stock'] as String).trim().split(RegExp(r'\s+'));
-    final satuan = stockParts.length > 1 ? stockParts.last : 'Unit';
+    final stockParts =
+        (item['stock'] as String).trim().split(RegExp(r'\s+'));
+    final satuan =
+        stockParts.length > 1 ? stockParts.last : 'Unit';
 
     final result = await showDialog<Map<String, String>>(
       context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(22),
-          ),
-          title: const Text(
-            'Ajukan Kebutuhan Stok',
-            style: TextStyle(
-              color: primary,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item['name'] as String,
-                  style: const TextStyle(
-                    color: primary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  'Stok saat ini: ${item['stock']}',
-                  style: const TextStyle(color: muted, fontSize: 12),
-                ),
-                const SizedBox(height: 17),
-                TextField(
-                  controller: quantityController,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  decoration: InputDecoration(
-                    labelText: 'Jumlah yang dibutuhkan',
-                    suffixText: satuan,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: primary),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 13),
-                TextField(
-                  controller: noteController,
-                  maxLines: 3,
-                  decoration: InputDecoration(
-                    labelText: 'Catatan (opsional)',
-                    hintText: 'Contoh: Dibutuhkan untuk operasional...',
-                    alignLabelWithHint: true,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: primary),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Batal', style: TextStyle(color: muted)),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final quantity = quantityController.text.trim();
-                final parsed = double.tryParse(quantity.replaceAll(',', '.'));
-                if (parsed == null || parsed <= 0) {
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    const SnackBar(
-                      content: Text('Masukkan jumlah kebutuhan yang valid.'),
-                    ),
-                  );
-                  return;
-                }
-                Navigator.pop(dialogContext, {
-                  'quantity': quantity,
-                  'note': noteController.text.trim(),
-                });
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              child: const Text('Kirim Pengajuan'),
-            ),
-          ],
-        );
-      },
+      useRootNavigator: true,
+      builder: (_) => _AjukanBahanDialog(
+        namaBahan: item['name'].toString(),
+        stokSaatIni: item['stock'].toString(),
+        satuan: satuan,
+      ),
     );
 
-    quantityController.dispose();
-    noteController.dispose();
-
-    if (result == null || !mounted) return;
+    if (!mounted || result == null) return;
 
     try {
-      final currentQty = (item['stockQty'] as num?)?.toDouble() ?? 0;
+      final currentQty =
+          (item['stockQty'] as num?)?.toDouble() ?? 0;
+
       await StockFirestoreService.createStockRequest(
         name: item['name'].toString(),
         unit: satuan,
-        quantity: double.parse(result['quantity']!.replaceAll(',', '.')),
+        quantity: double.parse(
+          result['quantity']!.replaceAll(',', '.'),
+        ),
         note: result['note']!,
         currentStock: currentQty,
+        category: item['category']?.toString() ?? '',
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Pengajuan ${item['name']} berhasil dibuat.'),
+          backgroundColor: primary,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Pengajuan gagal disimpan: $e')),
       );
-      return;
     }
-
-    setState(() {
-      _requests.insert(0, {
-        'name': item['name'],
-        'stock': item['stock'],
-        'quantity': '${result['quantity']} $satuan',
-        'note': result['note']!,
-        'status': 'Menunggu Diproses Admin',
-        'date': DateTime.now(),
-      });
-    });
-
-    // ignore: use_build_context_synchronously
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Pengajuan ${item['name']} berhasil dibuat.'),
-        backgroundColor: primary,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
   }
 
-  Widget _buildRequestHistory() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Riwayat Pengajuan',
-          style: TextStyle(
-            color: primary,
-            fontSize: 17,
-            fontWeight: FontWeight.w800,
-          ),
+  Future<void> _editStockRequest(Map<String, dynamic> request) async {
+    final requestId = (request['_requestId'] ?? '').toString();
+    if (requestId.isEmpty ||
+        request['status'] != 'Menunggu Konfirmasi Admin') return;
+
+    final result = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (_) => _AjukanBahanDialog(
+        namaBahan: (request['namaBahan'] ?? '').toString(),
+        stokSaatIni: '${request['stokSaatPengajuan'] ?? 0} ${request['satuan'] ?? ''}',
+        satuan: (request['satuan'] ?? 'Unit').toString(),
+        initialQuantity: (request['jumlahDiajukan'] ?? '').toString(),
+        initialNote: (request['catatan'] ?? '').toString(),
+        isEditing: true,
+      ),
+    );
+    if (!mounted || result == null) return;
+
+    try {
+      await StockFirestoreService.updateStockRequest(
+        requestId: requestId,
+        quantity: double.parse(result['quantity']!.replaceAll(',', '.')),
+        note: result['note'] ?? '',
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pengajuan berhasil diperbarui.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal mengedit pengajuan: $e')),
+      );
+    }
+  }
+
+  Future<void> _cancelStockRequest(Map<String, dynamic> request) async {
+    final requestId = (request['_requestId'] ?? '').toString();
+    if (requestId.isEmpty ||
+        request['status'] != 'Menunggu Konfirmasi Admin') return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Batalkan Pengajuan?'),
+        content: Text(
+          'Pengajuan ${(request['namaBahan'] ?? 'bahan ini').toString()} akan ditandai sebagai dibatalkan. Tindakan ini tidak dapat diurungkan.',
         ),
-        const SizedBox(height: 10),
-        ..._requests.map((request) {
-          return Container(
-            margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(17),
-              border: Border.all(color: const Color(0xFFE8EEE8)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Kembali'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFD92D2D),
+              foregroundColor: Colors.white,
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Ya, Batalkan'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await StockFirestoreService.cancelStockRequest(requestId: requestId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pengajuan berhasil dibatalkan.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal membatalkan pengajuan: $e')),
+      );
+    }
+  }
+
+  Widget _buildRequestHistory(List<Map<String, dynamic>> requests) {
+    final filtered = requests.where((request) {
+      final status = (request['status'] ?? '').toString().toLowerCase();
+      switch (_selectedRequestStatus) {
+        case 'Menunggu':
+          return status.contains('menunggu');
+        case 'Disetujui':
+          return status.contains('disetujui') || status.contains('selesai') ||
+              status.contains('barang diterima') || status.contains('po dibuat');
+        case 'Ditolak':
+          return status.contains('ditolak');
+        default:
+          return true;
+      }
+    }).toList();
+
+    if (filtered.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 35),
+        child: Text(
+          'Tidak ada pengajuan dengan status $_selectedRequestStatus.',
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: muted, fontSize: 12),
+        ),
+      );
+    }
+
+    return Column(
+      children: filtered.map((request) {
+        final namaBahan =
+            (request['namaBahan'] ?? request['name'] ?? 'Bahan tidak diketahui').toString();
+        final jumlah = (request['jumlahDiajukan'] ?? request['quantity'] ?? '-').toString();
+        final satuan = (request['satuan'] ?? request['unit'] ?? '').toString();
+        final catatan = (request['catatan'] ?? request['note'] ?? '').toString();
+        final status =
+            (request['status'] ?? 'Status tidak diketahui').toString();
+        final createdAt = request['createdAt'];
+        final rejected = status.toLowerCase().contains('ditolak');
+        final approved = status.toLowerCase().contains('disetujui') ||
+            status.toLowerCase().contains('selesai') ||
+            status.toLowerCase().contains('barang diterima') ||
+            status.toLowerCase().contains('po dibuat');
+        final statusColor = rejected
+            ? const Color(0xFFD92D2D)
+            : approved
+                ? const Color(0xFF21834B)
+                : const Color(0xFFE58B00);
+        final statusBg = rejected
+            ? const Color(0xFFFFE3E3)
+            : approved
+                ? const Color(0xFFE1F3E3)
+                : const Color(0xFFFFF1D6);
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(13),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFFE8EEE8)),
+            boxShadow: [
+              BoxShadow(
+                color: primary.withValues(alpha: 0.035),
+                blurRadius: 9,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 43,
+                height: 43,
+                decoration: BoxDecoration(
+                  color: lightGreen,
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: const Icon(
+                  Icons.inventory_2_outlined,
+                  color: primary,
+                  size: 21,
+                ),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(
-                      Icons.inventory_2_outlined,
-                      color: primary,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 9),
-                    Expanded(
-                      child: Text(
-                        request['name'] as String,
-                        style: const TextStyle(
-                          color: textColor,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 13,
-                        ),
+                    Text(
+                      namaBahan,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: textColor,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
                       ),
                     ),
-                    const Icon(
-                      Icons.schedule_rounded,
-                      color: Color(0xFFE58B00),
-                      size: 16,
+                    const SizedBox(height: 3),
+                    Text(
+                      '$jumlah $satuan',
+                      style: const TextStyle(
+                        color: textColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
+                    if (createdAt is Timestamp) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          const Icon(Icons.calendar_today_outlined,
+                              size: 12, color: muted),
+                          const SizedBox(width: 5),
+                          Text(
+                            _formatRequestDate(createdAt),
+                            style: const TextStyle(color: muted, fontSize: 10),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (catatan.isNotEmpty) ...[
+                      const SizedBox(height: 5),
+                      Text(
+                        catatan,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: muted, fontSize: 10),
+                      ),
+                    ],
+                    if (status == 'Menunggu Konfirmasi Admin') ...[
+                      const SizedBox(height: 9),
+                      Row(
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: () => _editStockRequest(request),
+                            icon: const Icon(Icons.edit_outlined, size: 14),
+                            label: const Text('Edit'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: primary,
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              side: const BorderSide(color: Color(0xFFDCE8DC)),
+                              textStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                          const SizedBox(width: 7),
+                          TextButton.icon(
+                            onPressed: () => _cancelStockRequest(request),
+                            icon: const Icon(Icons.close_rounded, size: 14),
+                            label: const Text('Batalkan'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: const Color(0xFFD92D2D),
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                              textStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
-                const SizedBox(height: 9),
-                Text(
-                  'Jumlah: ${request['quantity']}',
-                  style: const TextStyle(color: muted, fontSize: 12),
-                ),
-                if ((request['note'] as String).isNotEmpty) ...[
-                  const SizedBox(height: 5),
-                  Text(
-                    'Catatan: ${request['note']}',
-                    style: const TextStyle(color: muted, fontSize: 11),
-                  ),
-                ],
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
+              ),
+              const SizedBox(width: 7),
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFF1D6),
+                    color: statusBg,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    request['status'] as String,
-                    style: const TextStyle(
-                      color: Color(0xFFE58B00),
-                      fontSize: 10,
+                    status,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: statusColor,
+                      fontSize: 9,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
-              ],
-            ),
-          );
-        }),
-      ],
+              ),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 
-  Widget _buildEmptyState() {
+  String _formatRequestDate(Timestamp timestamp) {
+    final date = timestamp.toDate().toLocal();
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final year = date.year.toString();
+    final hour = date.hour.toString().padLeft(2, '0');
+    final minute = date.minute.toString().padLeft(2, '0');
+    return '$day/$month/$year • $hour:$minute';
+  }
+
+Widget _buildEmptyState() {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 45),
       child: Column(
