@@ -4,6 +4,7 @@ import 'package:tubes_pemmob/widgets/savora_loading.dart';
 import 'package:tubes_pemmob/admin/notification_admin.dart';
 import 'package:tubes_pemmob/admin/profile_admin.dart';
 import 'package:tubes_pemmob/admin/bahan_admin.dart';
+import 'pengadaan_admin.dart';
 
 class AdminHome extends StatefulWidget {
   const AdminHome({super.key});
@@ -156,12 +157,14 @@ class _AdminHomeState extends State<AdminHome> {
     return Scaffold(
       backgroundColor: background,
       body: SafeArea(
-        child: _selectedIndex == 0
-            ? _buildDashboard()
-            : _selectedIndex == 1
-            ? const BahanAdmin()
-            : _buildOtherPage(),
-      ),
+  child: _selectedIndex == 0
+      ? _buildDashboard()
+      : _selectedIndex == 1
+      ? const BahanAdmin()
+      : _selectedIndex == 3
+      ? const PengadaanAdmin()
+      : _buildOtherPage(),
+),
       bottomNavigationBar: _buildBottomNavigation(),
     );
   }
@@ -185,10 +188,10 @@ class _AdminHomeState extends State<AdminHome> {
                 _buildCriticalStock(),
                 const SizedBox(height: 28),
                 _buildSectionTitle(
-                  'Bahan Menipis',
-                  'Lihat Semua',
-                  onTap: () => _changeTab(1),
-                ),
+                'Bahan Menipis',
+                'Lihat Semua',
+                onTap: () => _changeTab(3),
+              ),
                 const SizedBox(height: 14),
                 ...bahanMenipis.map(_buildStockCard),
                 const SizedBox(height: 18),
@@ -858,13 +861,11 @@ class _AdminHomeState extends State<AdminHome> {
           ),
         ),
         const SizedBox(width: 12),
-        Expanded(
-          child: _quickAction(
-            icon: Icons.inventory_2,
-            label: 'Katalog',
-            onTap: () => _changeTab(1),
-          ),
-        ),
+       _quickAction(
+        icon: Icons.inventory_2,
+        label: 'Katalog',
+        onTap: () => _changeTab(1),
+      ),
       ],
     );
   }
