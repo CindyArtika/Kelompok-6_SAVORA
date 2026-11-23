@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:tubes_pemmob/widgets/savora_loading.dart';
 import 'package:tubes_pemmob/admin/notification_admin.dart';
 import 'package:tubes_pemmob/admin/profile_admin.dart';
 import 'package:tubes_pemmob/admin/bahan_admin.dart';
+
 import 'pengadaan_admin.dart';
 
 class AdminHome extends StatefulWidget {
@@ -91,52 +91,6 @@ class _AdminHomeState extends State<AdminHome> {
     setState(() {});
   }
 
-  // ================= LOGOUT =================
-
-  Future<void> _logout() async {
-    try {
-      await FirebaseAuth.instance.signOut();
-
-      if (!mounted) return;
-
-      // AuthGate otomatis menampilkan IntroSplashScreen.
-    } catch (e) {
-      if (!mounted) return;
-      _showMessage('Gagal logout. Silakan coba lagi.');
-    }
-  }
-
-  void _showLogoutDialog() {
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Logout'),
-          content: const Text(
-            'Apakah kamu yakin ingin keluar dari akun Admin?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Batal'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.pop(dialogContext);
-                await _logout();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primary,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Logout'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   void _changeTab(int index) {
     setState(() {
       _selectedIndex = index;
@@ -157,14 +111,14 @@ class _AdminHomeState extends State<AdminHome> {
     return Scaffold(
       backgroundColor: background,
       body: SafeArea(
-  child: _selectedIndex == 0
-      ? _buildDashboard()
-      : _selectedIndex == 1
-      ? const BahanAdmin()
-      : _selectedIndex == 3
-      ? const PengadaanAdmin()
-      : _buildOtherPage(),
-),
+        child: _selectedIndex == 0
+            ? _buildDashboard()
+            : _selectedIndex == 1
+            ? const BahanAdmin()
+            : _selectedIndex == 3
+            ? const PengadaanAdmin()
+            : _buildOtherPage(),
+      ),
       bottomNavigationBar: _buildBottomNavigation(),
     );
   }
@@ -182,30 +136,30 @@ class _AdminHomeState extends State<AdminHome> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildGreeting(),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 _buildSummary(),
                 const SizedBox(height: 22),
                 _buildCriticalStock(),
-                const SizedBox(height: 28),
+                const SizedBox(height: 24),
                 _buildSectionTitle(
-                'Bahan Menipis',
-                'Lihat Semua',
-                onTap: () => _changeTab(3),
-              ),
+                  'Bahan Menipis',
+                  'Lihat Semua',
+                  onTap: () => _changeTab(1),
+                ),
                 const SizedBox(height: 14),
                 ...bahanMenipis.map(_buildStockCard),
-                const SizedBox(height: 18),
+                const SizedBox(height: 12),
                 _buildProfitCard(),
-                const SizedBox(height: 28),
+                const SizedBox(height: 22),
                 const Text(
-                  'Kelola Operasional',
+                  'Aksi Cepat',
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
                     color: textColor,
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
                 _buildQuickActions(),
               ],
             ),
@@ -319,12 +273,6 @@ class _AdminHomeState extends State<AdminHome> {
                 child: Icon(Icons.person, color: primary, size: 25),
               ),
             ),
-          ),
-          const SizedBox(width: 4),
-          IconButton(
-            onPressed: _showLogoutDialog,
-            tooltip: 'Logout',
-            icon: const Icon(Icons.logout_rounded, color: primary),
           ),
         ],
       ),
@@ -861,11 +809,13 @@ class _AdminHomeState extends State<AdminHome> {
           ),
         ),
         const SizedBox(width: 12),
-       _quickAction(
-        icon: Icons.inventory_2,
-        label: 'Katalog',
-        onTap: () => _changeTab(1),
-      ),
+        Expanded(
+          child: _quickAction(
+            icon: Icons.inventory_2,
+            label: 'Katalog',
+            onTap: () => _changeTab(1),
+          ),
+        ),
       ],
     );
   }

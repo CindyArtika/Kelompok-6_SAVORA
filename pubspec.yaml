@@ -69,6 +69,14 @@ flutter:
     - assets/images/coffee_header.png
     - assets/images/google-icon.png
     - assets/images/bahan/
+    - assets/images/Stock_Bahan.png
+    - assets/images/Status_Menu.png
+    - assets/images/Bahan_Minuman/
+    - assets/images/Pastry/
+    - assets/images/Perlengkapan_Operasional_Dapur/
+    - assets/images/Menu_Pastry/
+    - assets/images/Menu_Minuman/
+    - assets/data/data_stok_bahan_savora.json
   #   - images/a_dot_ham.jpeg
 
   # To add assets to your application, add an assets section, like this:
