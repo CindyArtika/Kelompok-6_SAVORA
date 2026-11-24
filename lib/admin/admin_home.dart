@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:tubes_pemmob/services/stock_firestore_service.dart';
 import 'package:tubes_pemmob/widgets/savora_loading.dart';
 import 'package:tubes_pemmob/admin/notification_admin.dart';
 import 'package:tubes_pemmob/admin/profile_admin.dart';
@@ -247,12 +249,21 @@ class _AdminHomeState extends State<AdminHome> {
           ),
 
           // Tombol Notifikasi Admin
-          GestureDetector(
-            onTap: _openNotification,
-            child: _headerIcon(
-              Icons.notifications_none,
-              showDot: NotificationAdmin.unreadCount > 0,
-            ),
+          StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: StockFirestoreService.watchAdminNotifications(),
+            builder: (context, snapshot) {
+              final docs = snapshot.data?.docs ?? [];
+              final hasUnread = docs.any(
+                (doc) => doc.data()['isRead'] != true,
+              );
+              return GestureDetector(
+                onTap: _openNotification,
+                child: _headerIcon(
+                  Icons.notifications_none,
+                  showDot: hasUnread,
+                ),
+              );
+            },
           ),
 
           const SizedBox(width: 8),

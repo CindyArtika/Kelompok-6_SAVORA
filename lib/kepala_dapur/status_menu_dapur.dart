@@ -6,8 +6,9 @@ class StatusMenuDapur extends StatefulWidget {
   final List<Map<String, String>> menus;
   final void Function(Map<String, String> menu, String newStatus)
   onStatusChanged;
+  
   final void Function(Map<String, String> menu)? onViewRecipe;
-
+  
   const StatusMenuDapur({
     super.key,
     required this.menus,
@@ -32,24 +33,45 @@ class _StatusMenuDapurState extends State<StatusMenuDapur> {
   final TextEditingController _searchController = TextEditingController();
   List<Map<String, String>> _liveMenus = [];
   String _selectedCategory = 'Semua';
+  String _selectedSubcategory = 'Semua';
+final List<String> _drinkSubcategories = [
+  'Semua',
+  'Coffee',
+  'Non-Coffee',
+  'Tea',
+  'Fruit-Based',
+];
   String _selectedStatus = 'Semua';
   String _searchQuery = '';
 
   final List<String> _categories = ['Semua', 'Minuman', 'Pastry'];
   final List<String> _statuses = ['Semua', 'Tersedia', 'Habis'];
 
-  List<Map<String, String>> get _filteredMenus {
-    return _liveMenus.where((menu) {
-      final categoryMatch =
-          _selectedCategory == 'Semua' || menu['category'] == _selectedCategory;
-      final statusMatch =
-          _selectedStatus == 'Semua' || menu['status'] == _selectedStatus;
-      final searchMatch = (menu['name'] ?? '').toLowerCase().contains(
-        _searchQuery.toLowerCase(),
-      );
-      return categoryMatch && statusMatch && searchMatch;
-    }).toList();
-  }
+
+List<Map<String, String>> get _filteredMenus {
+  return _liveMenus.where((menu) {
+    final categoryMatch = _selectedCategory == 'Semua' ||
+        menu['category'] == _selectedCategory;
+
+    final subcategoryMatch =
+        _selectedCategory != 'Minuman' ||
+        _selectedSubcategory == 'Semua' ||
+        menu['subcategory'] == _selectedSubcategory;
+
+    final statusMatch = _selectedStatus == 'Semua' ||
+        menu['status'] == _selectedStatus;
+
+    final searchMatch = (menu['name'] ?? '')
+        .toLowerCase()
+        .contains(_searchQuery.toLowerCase());
+
+    return categoryMatch &&
+        subcategoryMatch &&
+        statusMatch &&
+        searchMatch;
+  }).toList();
+}
+
 
   int get _totalTersedia =>
       _liveMenus.where((m) => m['status'] == 'Tersedia').length;
@@ -61,7 +83,22 @@ class _StatusMenuDapurState extends State<StatusMenuDapur> {
     _searchController.dispose();
     super.dispose();
   }
+@override
+void initState() {
+  super.initState();
+  _runSubcategoryMigration();
+}
 
+Future<void> _runSubcategoryMigration() async {
+  try {
+    final count =
+        await MenuFirestoreService.migrateSubcategories();
+
+    debugPrint('Migrasi subkategori berhasil: $count menu diperbarui');
+  } catch (e) {
+    debugPrint('Migrasi subkategori gagal: $e');
+  }
+}
   @override
   Widget build(BuildContext context) {
     return StreamBuilder(
@@ -271,34 +308,104 @@ class _StatusMenuDapurState extends State<StatusMenuDapur> {
     );
   }
 
-  Widget _buildFilters() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: _filterDropdown(
-            title: 'Kategori Menu',
-            selectedValue: _selectedCategory,
-            values: _categories,
-            onChanged: (value) {
-              setState(() => _selectedCategory = value);
-            },
+  
+Widget _buildFilters() {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: _filterDropdown(
+              title: 'Kategori Menu',
+              selectedValue: _selectedCategory,
+              values: _categories,
+              onChanged: (value) {
+                setState(() {
+                  _selectedCategory = value;
+                  _selectedSubcategory = 'Semua';
+                });
+              },
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _filterDropdown(
+              title: 'Status Menu',
+              selectedValue: _selectedStatus,
+              values: _statuses,
+              onChanged: (value) {
+                setState(() => _selectedStatus = value);
+              },
+            ),
+          ),
+        ],
+      ),
+
+      if (_selectedCategory == 'Minuman') ...[
+        const SizedBox(height: 17),
+        const Text(
+          'Jenis Minuman',
+          style: TextStyle(
+            color: textColor,
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
           ),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _filterDropdown(
-            title: 'Status Menu',
-            selectedValue: _selectedStatus,
-            values: _statuses,
-            onChanged: (value) {
-              setState(() => _selectedStatus = value);
-            },
-          ),
-        ),
+        const SizedBox(height: 10),
+        _buildDrinkSubcategoryFilters(),
       ],
-    );
-  }
+    ],
+  );
+}
+
+Widget _buildDrinkSubcategoryFilters() {
+  return SingleChildScrollView(
+    scrollDirection: Axis.horizontal,
+    child: Row(
+      children: _drinkSubcategories.map((subcategory) {
+        final selected = _selectedSubcategory == subcategory;
+
+        return Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: GestureDetector(
+            onTap: () {
+              setState(() {
+                _selectedSubcategory = subcategory;
+              });
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 10,
+              ),
+              decoration: BoxDecoration(
+                color: selected ? primary : Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: selected
+                      ? primary
+                      : const Color(0xFFE2EAE4),
+                ),
+              ),
+              child: Text(
+                subcategory,
+                style: TextStyle(
+                  color: selected ? Colors.white : primary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    ),
+  );
+}
+
 
   Widget _filterDropdown({
     required String title,

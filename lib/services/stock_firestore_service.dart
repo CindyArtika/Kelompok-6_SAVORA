@@ -10,6 +10,7 @@ class StockFirestoreService {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
   static const String collectionName = 'stok_bahan';
   static const String requestCollectionName = 'pengajuan_stok_bahan';
+  static const String adminNotificationCollection = 'notifikasi_admin';
 
   static Future<void> importStocksFromJson() async {
     final snapshot = await _db.collection(collectionName).limit(1).get();
@@ -111,13 +112,26 @@ class StockFirestoreService {
     String category = '',
   }) async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) throw StateError('Sesi pengguna tidak ditemukan. Silakan login ulang.');
-    if (quantity <= 0 || currentStock < 0) throw ArgumentError('Jumlah pengajuan atau stok saat ini tidak valid.');
+    if (user == null) {
+      throw StateError('Sesi pengguna tidak ditemukan. Silakan login ulang.');
+    }
+    if (quantity <= 0 || currentStock < 0) {
+      throw ArgumentError('Jumlah pengajuan atau stok saat ini tidak valid.');
+    }
+
     final userDoc = await _db.collection('users').doc(user.uid).get();
     final userData = userDoc.data() ?? <String, dynamic>{};
-    final doc = await _db.collection(requestCollectionName).add({
+    final requesterName =
+        (userData['nama'] ?? user.displayName ?? 'Kepala Dapur').toString();
+
+    final requestRef = _db.collection(requestCollectionName).doc();
+    final notificationRef =
+        _db.collection(adminNotificationCollection).doc();
+    final batch = _db.batch();
+
+    batch.set(requestRef, {
       'requesterUid': user.uid,
-      'requesterName': (userData['nama'] ?? user.displayName ?? '').toString(),
+      'requesterName': requesterName,
       'requesterEmail': user.email ?? '',
       'requesterRole': (userData['role'] ?? 'kepala_dapur').toString(),
       'namaBahan': name,
@@ -146,10 +160,28 @@ class StockFirestoreService {
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
       'riwayatStatus': [
-        {'status': 'Menunggu Konfirmasi Admin', 'olehUid': user.uid, 'olehRole': 'kepala_dapur', 'waktu': Timestamp.now()}
+        {
+          'status': 'Menunggu Konfirmasi Admin',
+          'olehUid': user.uid,
+          'olehRole': 'kepala_dapur',
+          'waktu': Timestamp.now(),
+        }
       ],
     });
-    return doc.id;
+
+    batch.set(notificationRef, {
+      'requestId': requestRef.id,
+      'title': 'Pengajuan Bahan Baru',
+      'message':
+          '$requesterName mengajukan $name sebanyak ${_formatNumber(quantity)} $unit.',
+      'type': 'pengajuan_bahan',
+      'isRead': false,
+      'recipientRole': 'admin',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    await batch.commit();
+    return requestRef.id;
   }
 
   // Hanya pengaju sendiri yang dapat mengedit selama belum diproses Admin.
@@ -230,6 +262,48 @@ class StockFirestoreService {
 
   static Stream<QuerySnapshot<Map<String, dynamic>>> watchAllStockRequests() =>
       _db.collection(requestCollectionName).orderBy('createdAt', descending: true).snapshots();
+
+
+  // Stream notifikasi Admin secara real-time.
+  static Stream<QuerySnapshot<Map<String, dynamic>>>
+      watchAdminNotifications() {
+    return _db
+        .collection(adminNotificationCollection)
+        .where('recipientRole', isEqualTo: 'admin')
+        .orderBy('createdAt', descending: true)
+        .snapshots();
+  }
+
+  // Menandai satu notifikasi sebagai sudah dibaca.
+  static Future<void> markAdminNotificationAsRead(
+    String notificationId,
+  ) async {
+    await _db
+        .collection(adminNotificationCollection)
+        .doc(notificationId)
+        .update({
+      'isRead': true,
+      'readAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // Menandai semua notifikasi sebagai sudah dibaca.
+  static Future<void> markAllAdminNotificationsAsRead(
+    List<String> notificationIds,
+  ) async {
+    if (notificationIds.isEmpty) return;
+    final batch = _db.batch();
+    for (final id in notificationIds) {
+      batch.update(
+        _db.collection(adminNotificationCollection).doc(id),
+        {
+          'isRead': true,
+          'readAt': FieldValue.serverTimestamp(),
+        },
+      );
+    }
+    await batch.commit();
+  }
 
   static double _asDouble(dynamic value) {
     if (value is num) return value.toDouble();
