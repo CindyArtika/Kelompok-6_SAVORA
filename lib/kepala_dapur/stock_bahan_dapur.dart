@@ -678,70 +678,70 @@ class _StokBahanDapurState extends State<StokBahanDapur> {
     );
   }
 
-  Widget _buildCategories() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'Kategori Bahan',
-              style: TextStyle(
-                color: primary,
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-              ),
+ 
+
+Widget _buildCategories() {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text(
+            'Kategori Bahan',
+            style: TextStyle(
+              color: primary,
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
             ),
-            const Text(
-              '4 kategori',
-              style: TextStyle(color: muted, fontSize: 10),
+          ),
+          const Text(
+            '4 kategori',
+            style: TextStyle(
+              color: muted,
+              fontSize: 10,
             ),
-          ],
-        ),
-        const SizedBox(height: 9),
-        Row(
+          ),
+        ],
+      ),
+      const SizedBox(height: 10),
+
+      // Kategori berbentuk pill seperti subkategori minuman
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
           children: _categories.map((category) {
             final selected = _selectedCategory == category;
-            return Expanded(
-              child: Padding(
-                padding: EdgeInsets.only(
-                  right: category == _categories.last ? 0 : 7,
-                ),
-                child: GestureDetector(
-                  onTap: () => setState(() => _selectedCategory = category),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    height: 56,
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 7),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: selected ? primary : Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: selected ? primary : const Color(0xFFE3EBE3),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: primary.withValues(
-                            alpha: selected ? 0.09 : 0.025,
-                          ),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedCategory = category;
+                  });
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: selected ? primary : Colors.white,
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(
+                      color: selected
+                          ? primary
+                          : const Color(0xFFE3EBE3),
                     ),
-                    child: Text(
-                      category,
-                      maxLines: 2,
-                      textAlign: TextAlign.center,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: selected ? Colors.white : primary,
-                        fontSize: 9.5,
-                        height: 1.15,
-                        fontWeight: FontWeight.w700,
-                      ),
+                  ),
+                  child: Text(
+                    category,
+                    style: TextStyle(
+                      color: selected ? Colors.white : primary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
@@ -749,9 +749,10 @@ class _StokBahanDapurState extends State<StokBahanDapur> {
             );
           }).toList(),
         ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
+}
 
   Future<void> _showStatusFilter() async {
     final result = await showModalBottomSheet<String>(
@@ -1012,35 +1013,52 @@ class _StokBahanDapurState extends State<StokBahanDapur> {
     );
   }
 
-  Widget _stockImage(
-    Map<String, dynamic> item, {
-    required double width,
-    required double height,
-    required double radius,
-  }) {
-    return Container(
-      width: width,
-      height: height,
-      decoration: BoxDecoration(
-        color: Color(item['color'] as int),
-        borderRadius: BorderRadius.circular(radius),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Image.asset(
-        item['image'] as String,
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) {
-          return const Center(
+ 
+Widget _stockImage(
+  Map<String, dynamic> item, {
+  required double width,
+  required double height,
+  required double radius,
+}) {
+  final rawColor = item['color'];
+  final colorValue = rawColor is num
+      ? rawColor.toInt()
+      : 0xFFE5F0E3;
+
+  final imagePath = (item['image'] ?? '').toString();
+
+  return Container(
+    width: width,
+    height: height,
+    decoration: BoxDecoration(
+      color: Color(colorValue),
+      borderRadius: BorderRadius.circular(radius),
+    ),
+    clipBehavior: Clip.antiAlias,
+    child: imagePath.isNotEmpty
+        ? Image.asset(
+            imagePath,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) {
+              return const Center(
+                child: Icon(
+                  Icons.inventory_2_outlined,
+                  color: Color(0xFF758078),
+                  size: 28,
+                ),
+              );
+            },
+          )
+        : const Center(
             child: Icon(
-              Icons.image_not_supported_outlined,
-              color: muted,
+              Icons.inventory_2_outlined,
+              color: Color(0xFF758078),
               size: 28,
             ),
-          );
-        },
-      ),
-    );
-  }
+          ),
+  );
+}
+
 
   Color _statusColor(String status) {
     switch (status) {
@@ -1294,86 +1312,125 @@ class _StokBahanDapurState extends State<StokBahanDapur> {
     }
   }
 
-  Future<void> _editStockRequest(Map<String, dynamic> request) async {
-    final requestId = (request['_requestId'] ?? '').toString();
-    if (requestId.isEmpty ||
-        request['status'] != 'Menunggu Konfirmasi Admin') return;
+  
+Future<void> _editStockRequest(Map<String, dynamic> request) async {
+  final requestId = (request['_requestId'] ?? '').toString();
 
-    final result = await showDialog<Map<String, String>>(
-      context: context,
-      builder: (_) => _AjukanBahanDialog(
-        namaBahan: (request['namaBahan'] ?? '').toString(),
-        stokSaatIni: '${request['stokSaatPengajuan'] ?? 0} ${request['satuan'] ?? ''}',
-        satuan: (request['satuan'] ?? 'Unit').toString(),
-        initialQuantity: (request['jumlahDiajukan'] ?? '').toString(),
-        initialNote: (request['catatan'] ?? '').toString(),
-        isEditing: true,
-      ),
-    );
-    if (!mounted || result == null) return;
-
-    try {
-      await StockFirestoreService.updateStockRequest(
-        requestId: requestId,
-        quantity: double.parse(result['quantity']!.replaceAll(',', '.')),
-        note: result['note'] ?? '',
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pengajuan berhasil diperbarui.')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal mengedit pengajuan: $e')),
-      );
-    }
+  if (requestId.isEmpty ||
+      request['status'] != 'Menunggu Konfirmasi Admin') {
+    return;
   }
 
-  Future<void> _cancelStockRequest(Map<String, dynamic> request) async {
-    final requestId = (request['_requestId'] ?? '').toString();
-    if (requestId.isEmpty ||
-        request['status'] != 'Menunggu Konfirmasi Admin') return;
+  final result = await showDialog<Map<String, String>>(
+    context: context,
+    builder: (_) => _AjukanBahanDialog(
+      namaBahan: (request['namaBahan'] ?? '').toString(),
+      stokSaatIni:
+          '${request['stokSaatPengajuan'] ?? 0} ${request['satuan'] ?? ''}',
+      satuan: (request['satuan'] ?? 'Unit').toString(),
+      initialQuantity: (request['jumlahDiajukan'] ?? '').toString(),
+      initialNote: (request['catatan'] ?? '').toString(),
+      isEditing: true,
+    ),
+  );
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Batalkan Pengajuan?'),
-        content: Text(
-          'Pengajuan ${(request['namaBahan'] ?? 'bahan ini').toString()} akan ditandai sebagai dibatalkan. Tindakan ini tidak dapat diurungkan.',
+  if (!mounted || result == null) {
+    return;
+  }
+
+  try {
+    await StockFirestoreService.updateStockRequest(
+      requestId: requestId,
+      quantity: double.parse(
+        result['quantity']!.replaceAll(',', '.'),
+      ),
+      note: result['note'] ?? '',
+    );
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Pengajuan berhasil diperbarui.'),
+      ),
+    );
+  } catch (e) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Gagal mengedit pengajuan: $e')),
+    );
+  }
+}
+
+
+ 
+Future<void> _cancelStockRequest(
+  Map<String, dynamic> request,
+) async {
+  final requestId = (request['_requestId'] ?? '').toString();
+
+  if (requestId.isEmpty ||
+      request['status'] != 'Menunggu Konfirmasi Admin') {
+    return;
+  }
+
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      title: const Text('Batalkan Pengajuan?'),
+      content: Text(
+        'Pengajuan ${(request['namaBahan'] ?? 'bahan ini').toString()} '
+        'akan ditandai sebagai dibatalkan. '
+        'Tindakan ini tidak dapat diurungkan.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext, false),
+          child: const Text('Kembali'),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Kembali'),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFD92D2D),
+            foregroundColor: Colors.white,
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFD92D2D),
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Ya, Batalkan'),
-          ),
-        ],
+          onPressed: () => Navigator.pop(dialogContext, true),
+          child: const Text('Ya, Batalkan'),
+        ),
+      ],
+    ),
+  );
+
+  if (confirmed != true || !mounted) {
+    return;
+  }
+
+  try {
+    await StockFirestoreService.cancelStockRequest(
+      requestId: requestId,
+    );
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Pengajuan berhasil dibatalkan.'),
       ),
     );
-    if (confirmed != true || !mounted) return;
+  } catch (e) {
+    if (!mounted) return;
 
-    try {
-      await StockFirestoreService.cancelStockRequest(requestId: requestId);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pengajuan berhasil dibatalkan.')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal membatalkan pengajuan: $e')),
-      );
-    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Gagal membatalkan pengajuan: $e'),
+      ),
+    );
   }
+}
+
 
   Widget _buildRequestHistory(List<Map<String, dynamic>> requests) {
     final filtered = requests.where((request) {
@@ -1510,36 +1567,64 @@ class _StokBahanDapurState extends State<StokBahanDapur> {
                       const SizedBox(height: 9),
                       Row(
                         children: [
+                          // TOMBOL EDIT
                           OutlinedButton.icon(
-                            onPressed: () => _editStockRequest(request),
+                            onPressed: status == 'Menunggu Konfirmasi Admin'
+                                ? () => _editStockRequest(request)
+                                : null,
                             icon: const Icon(Icons.edit_outlined, size: 14),
                             label: const Text('Edit'),
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: primary,
+                              foregroundColor: status == 'Menunggu Konfirmasi Admin'
+                                  ? primary
+                                  : Colors.grey,
+                              disabledForegroundColor: Colors.grey,
                               visualDensity: VisualDensity.compact,
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                              side: const BorderSide(color: Color(0xFFDCE8DC)),
-                              textStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              side: BorderSide(
+                                color: status == 'Menunggu Konfirmasi Admin'
+                                    ? const Color(0xFFDCE8DC)
+                                    : Colors.grey.shade300,
+                              ),
+                              textStyle: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
+
                           const SizedBox(width: 7),
+
+                          // TOMBOL BATALKAN
                           TextButton.icon(
-                            onPressed: () => _cancelStockRequest(request),
+                            onPressed: status == 'Menunggu Konfirmasi Admin'
+                                ? () => _cancelStockRequest(request)
+                                : null,
                             icon: const Icon(Icons.close_rounded, size: 14),
                             label: const Text('Batalkan'),
                             style: TextButton.styleFrom(
                               foregroundColor: const Color(0xFFD92D2D),
+                              disabledForegroundColor: Colors.grey,
                               visualDensity: VisualDensity.compact,
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                              textStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 6,
+                              ),
+                              textStyle: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                         ],
                       ),
-                    ],
-                  ],
-                ),
-              ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
               const SizedBox(width: 7),
               Flexible(
                 child: Container(

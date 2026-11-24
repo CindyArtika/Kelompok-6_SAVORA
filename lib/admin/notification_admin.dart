@@ -1,19 +1,12 @@
-
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:tubes_pemmob/services/stock_firestore_service.dart';
 
 class NotificationAdmin extends StatefulWidget {
   final ValueChanged<int>? onNavigate;
 
-  const NotificationAdmin({
-    super.key,
-    this.onNavigate,
-  });
+  const NotificationAdmin({super.key, this.onNavigate});
 
-    static int get unreadCount {
-      return _NotificationAdminState.notifications
-          .where((item) => item['unread'] == true)
-          .length;
-    }
   @override
   State<NotificationAdmin> createState() => _NotificationAdminState();
 }
@@ -26,85 +19,55 @@ class _NotificationAdminState extends State<NotificationAdmin> {
 
   String selectedFilter = 'Semua';
 
-  static final List<Map<String, dynamic>> notifications = [
-    {
-      'title': 'Pengajuan Pengadaan Baru',
-      'message':
-          'Admin mengajukan pengadaan bahan baku. Periksa detail pengajuan.',
-      'time': '5 menit lalu',
-      'type': 'pengadaan',
-      'unread': true,
-    },
-    {
-      'title': 'Stok Bahan Menipis',
-      'message':
-          'Fresh Milk Pasteurisasi tersisa 4.5 L. Stok sudah di bawah batas minimum.',
-      'time': '30 menit lalu',
-      'type': 'stok',
-      'unread': true,
-    },
-    {
-      'title': 'Laporan Harian Tersedia',
-      'message':
-          'Laporan penjualan hari ini sudah tersedia untuk ditinjau.',
-      'time': '2 jam lalu',
-      'type': 'laporan',
-      'unread': false,
-    },
-    {
-      'title': 'Pengadaan Diselesaikan',
-      'message':
-          'Admin telah memperbarui status pengadaan bahan baku.',
-      'time': 'Kemarin',
-      'type': 'pengadaan',
-      'unread': false,
-    },
-  ];
+  String _formatTime(dynamic value) {
+    if (value is! Timestamp) return 'Baru saja';
+    final date = value.toDate();
+    final diff = DateTime.now().difference(date);
+    if (diff.inMinutes < 1) return 'Baru saja';
+    if (diff.inHours < 1) return '${diff.inMinutes} menit lalu';
+    if (diff.inDays < 1) return '${diff.inHours} jam lalu';
+    if (diff.inDays < 7) return '${diff.inDays} hari lalu';
+    return '${date.day}/${date.month}/${date.year}';
+  }
 
-  List<Map<String, dynamic>> get filteredNotifications {
-    if (selectedFilter == 'Belum dibaca') {
-      return notifications
-          .where((item) => item['unread'] == true)
+  Future<void> _markAllAsRead(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) async {
+    try {
+      final ids = docs
+          .where((doc) => doc.data()['isRead'] != true)
+          .map((doc) => doc.id)
           .toList();
+      await StockFirestoreService.markAllAdminNotificationsAsRead(ids);
+    } catch (e) {
+      _showMessage('Gagal memperbarui notifikasi: $e');
     }
-
-    return notifications;
   }
 
-  int get unreadCount {
-    return notifications.where((item) => item['unread'] == true).length;
-  }
-
-  void _markAllAsRead() {
-    setState(() {
-      for (final item in notifications) {
-        item['unread'] = false;
+  Future<void> _openNotification(
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+  ) async {
+    try {
+      if (doc.data()['isRead'] != true) {
+        await StockFirestoreService.markAdminNotificationAsRead(doc.id);
       }
-    });
+      if (!mounted) return;
+      Navigator.pop(context);
+      widget.onNavigate?.call(3);
+    } catch (e) {
+      _showMessage('Gagal membuka notifikasi: $e');
+    }
   }
 
-  void _openNotification(Map<String, dynamic> item) {
-    setState(() {
-      item['unread'] = false;
-    });
-
-    int destination = 0;
-
-    switch (item['type']) {
-      case 'stok':
-        destination = 1;
-        break;
-      case 'pengadaan':
-        destination = 3;
-        break;
-      case 'laporan':
-        destination = 4;
-        break;
-    }
-
-    Navigator.pop(context);
-
-    widget.onNavigate?.call(destination);
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: primary,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
@@ -116,10 +79,7 @@ class _NotificationAdminState extends State<NotificationAdmin> {
         elevation: 0,
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
-          icon: const Icon(
-            Icons.arrow_back_rounded,
-            color: primary,
-          ),
+          icon: const Icon(Icons.arrow_back_rounded, color: primary),
         ),
         title: const Text(
           'Notifikasi',
@@ -129,92 +89,103 @@ class _NotificationAdminState extends State<NotificationAdmin> {
             fontWeight: FontWeight.w800,
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: unreadCount == 0 ? null : _markAllAsRead,
-            child: const Text(
-              'Tandai semua',
-              style: TextStyle(
-                color: primary,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-        ],
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Aktivitas Terbaru',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    color: textColor,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  unreadCount == 0
-                      ? 'Semua notifikasi sudah dibaca.'
-                      : 'Kamu memiliki $unreadCount notifikasi belum dibaca.',
-                  style: const TextStyle(
-                    color: muted,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 18),
-                Row(
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: StockFirestoreService.watchAdminNotifications(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return const Center(child: Text('Gagal memuat notifikasi.'));
+          }
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(color: primary),
+            );
+          }
+
+          final docs = snapshot.data?.docs ?? [];
+          final unreadDocs = docs
+              .where((doc) => doc.data()['isRead'] != true)
+              .toList();
+          final filteredDocs = selectedFilter == 'Belum dibaca'
+              ? unreadDocs
+              : docs;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _filterButton('Semua'),
-                    const SizedBox(width: 10),
-                    _filterButton('Belum dibaca'),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Aktivitas Terbaru',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: textColor,
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: unreadDocs.isEmpty
+                              ? null
+                              : () => _markAllAsRead(docs),
+                          child: const Text(
+                            'Tandai semua',
+                            style: TextStyle(
+                              color: primary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      unreadDocs.isEmpty
+                          ? 'Semua notifikasi sudah dibaca.'
+                          : 'Kamu memiliki ${unreadDocs.length} notifikasi belum dibaca.',
+                      style: const TextStyle(color: muted, fontSize: 12),
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        _filterButton('Semua'),
+                        const SizedBox(width: 10),
+                        _filterButton('Belum dibaca'),
+                      ],
+                    ),
                   ],
                 ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: filteredNotifications.isEmpty
-                ? _emptyState()
-                : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                    itemCount: filteredNotifications.length,
-                    separatorBuilder: (_, index) =>
-                        const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      return _notificationCard(
-                        filteredNotifications[index],
-                      );
-                    },
-                  ),
-          ),
-        ],
+              ),
+              Expanded(
+                child: filteredDocs.isEmpty
+                    ? _emptyState()
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                        itemCount: filteredDocs.length,
+                        separatorBuilder: (context, index) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) =>
+                            _notificationCard(filteredDocs[index]),
+                      ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
   Widget _filterButton(String label) {
-    final bool selected = selectedFilter == label;
-
+    final selected = selectedFilter == label;
     return GestureDetector(
-      onTap: () {
-        setState(() {
-          selectedFilter = label;
-        });
-      },
+      onTap: () => setState(() => selectedFilter = label),
       child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 17,
-          vertical: 10,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 10),
         decoration: BoxDecoration(
           color: selected ? primary : Colors.white,
           borderRadius: BorderRadius.circular(20),
@@ -234,37 +205,17 @@ class _NotificationAdminState extends State<NotificationAdmin> {
     );
   }
 
-  Widget _notificationCard(Map<String, dynamic> item) {
-    final bool unread = item['unread'] == true;
-    final String type = item['type'];
-
-    final IconData icon;
-    final Color iconColor;
-    final Color iconBackground;
-
-    switch (type) {
-      case 'stok':
-        icon = Icons.warning_amber_rounded;
-        iconColor = const Color(0xFFC17B19);
-        iconBackground = const Color(0xFFFFF1D9);
-        break;
-      case 'pengadaan':
-        icon = Icons.inventory_2_outlined;
-        iconColor = primary;
-        iconBackground = const Color(0xFFE1F0E5);
-        break;
-      default:
-        icon = Icons.insert_chart_outlined;
-        iconColor = const Color(0xFF526FAD);
-        iconBackground = const Color(0xFFE8EDFA);
-    }
-
+  Widget _notificationCard(
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
+    final item = doc.data();
+    final unread = item['isRead'] != true;
     return Material(
       color: unread ? const Color(0xFFEDF5EF) : Colors.white,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () => _openNotification(item),
+        onTap: () => _openNotification(doc),
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -282,12 +233,12 @@ class _NotificationAdminState extends State<NotificationAdmin> {
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  color: iconBackground,
+                  color: const Color(0xFFE1F0E5),
                   borderRadius: BorderRadius.circular(13),
                 ),
-                child: Icon(
-                  icon,
-                  color: iconColor,
+                child: const Icon(
+                  Icons.inventory_2_outlined,
+                  color: primary,
                   size: 23,
                 ),
               ),
@@ -300,7 +251,7 @@ class _NotificationAdminState extends State<NotificationAdmin> {
                       children: [
                         Expanded(
                           child: Text(
-                            item['title'],
+                            (item['title'] ?? 'Notifikasi').toString(),
                             style: const TextStyle(
                               color: textColor,
                               fontSize: 14,
@@ -321,7 +272,7 @@ class _NotificationAdminState extends State<NotificationAdmin> {
                     ),
                     const SizedBox(height: 7),
                     Text(
-                      item['message'],
+                      (item['message'] ?? '').toString(),
                       style: const TextStyle(
                         color: muted,
                         fontSize: 12,
@@ -330,7 +281,7 @@ class _NotificationAdminState extends State<NotificationAdmin> {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      item['time'],
+                      _formatTime(item['createdAt']),
                       style: const TextStyle(
                         color: muted,
                         fontSize: 11,
@@ -369,10 +320,7 @@ class _NotificationAdminState extends State<NotificationAdmin> {
           SizedBox(height: 6),
           Text(
             'Notifikasi baru akan muncul di sini.',
-            style: TextStyle(
-              color: muted,
-              fontSize: 12,
-            ),
+            style: TextStyle(color: muted, fontSize: 12),
           ),
         ],
       ),
