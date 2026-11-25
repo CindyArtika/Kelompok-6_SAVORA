@@ -1296,8 +1296,11 @@ class _StokBahanDapurState extends State<StokBahanDapur> {
 
   Future<void> _editStockRequest(Map<String, dynamic> request) async {
     final requestId = (request['_requestId'] ?? '').toString();
+
     if (requestId.isEmpty ||
-        request['status'] != 'Menunggu Konfirmasi Admin') return;
+        request['status'] != 'Menunggu Konfirmasi Admin') {
+      return;
+    }
 
     final result = await showDialog<Map<String, String>>(
       context: context,
@@ -1332,8 +1335,11 @@ class _StokBahanDapurState extends State<StokBahanDapur> {
 
   Future<void> _cancelStockRequest(Map<String, dynamic> request) async {
     final requestId = (request['_requestId'] ?? '').toString();
+
     if (requestId.isEmpty ||
-        request['status'] != 'Menunggu Konfirmasi Admin') return;
+        request['status'] != 'Menunggu Konfirmasi Admin') {
+      return;
+    }
 
     final confirmed = await showDialog<bool>(
       context: context,

@@ -185,11 +185,182 @@ class _BahanAdminState extends State<BahanAdmin> {
       }
 
       // Daftar bahan akan diperbarui otomatis oleh streamBahan().
-    } catch (e) {
-      debugPrint('Gagal menyimpan bahan: $e');
+    } catch (e, stackTrace) {
+      debugPrint('GAGAL MENYIMPAN BAHAN: $e');
+      debugPrint('STACK TRACE: $stackTrace');
 
       if (!mounted) return;
-      _showMessage('Gagal menyimpan bahan ke Firestore.');
+
+      _showMessage('Gagal menyimpan: $e');
+    }
+  }
+
+
+  // DIALOG TAMBAH STOK BAHAN
+  Future<void> _showTambahStokDialog(
+    Map<String, dynamic> item,
+  ) async {
+    final jumlahController = TextEditingController();
+    final catatanController = TextEditingController();
+
+    final nama = item['nama']?.toString() ?? '';
+    final satuan = item['satuan']?.toString() ?? '';
+    final id = item['id']?.toString() ?? '';
+
+    if (id.isEmpty) {
+      _showMessage('ID bahan tidak ditemukan.');
+      return;
+    }
+
+    final jumlahStok = await showDialog<double>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            'Tambah Stok Bahan',
+            style: TextStyle(
+              color: primary,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  nama,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  'Stok saat ini: '
+                  '${_formatNumber((item['stok'] as num?) ?? 0)} $satuan',
+                  style: const TextStyle(
+                    color: muted,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  'Jumlah stok masuk',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 7),
+                TextField(
+                  controller: jumlahController,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Contoh: 10',
+                    suffixText: satuan,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'Catatan (opsional)',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 7),
+                TextField(
+                  controller: catatanController,
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    hintText: 'Contoh: Pembelian dari supplier',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+              },
+              child: const Text(
+                'Batal',
+                style: TextStyle(color: muted),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primary,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                final jumlah = double.tryParse(
+                  jumlahController.text.trim().replaceAll(',', '.'),
+                );
+
+                if (jumlah == null || jumlah <= 0) {
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Masukkan jumlah stok yang valid.',
+                      ),
+                    ),
+                  );
+                  return;
+                }
+
+                Navigator.pop(dialogContext, jumlah);
+              },
+              child: const Text('Simpan Stok'),
+            ),
+          ],
+        );
+      },
+    );
+
+    final catatan = catatanController.text.trim();
+
+    // Tunggu animasi penutupan dialog selesai.
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    jumlahController.dispose();
+    catatanController.dispose();
+
+    if (jumlahStok == null || !mounted) return;
+
+    try {
+      await _firestoreService.tambahStokBahan(
+        id: id,
+        jumlah: jumlahStok,
+        catatan: catatan,
+      );
+
+      if (!mounted) return;
+
+      _showMessage(
+        'Stok $nama berhasil ditambahkan.',
+      );
+    } catch (e, stackTrace) {
+      debugPrint('GAGAL MENAMBAH STOK: $e');
+      debugPrint('STACK TRACE: $stackTrace');
+
+      if (!mounted) return;
+
+      _showMessage('Gagal menambahkan stok: $e');
     }
   }
 
@@ -719,12 +890,13 @@ class _BahanAdminState extends State<BahanAdmin> {
             ? warningBg
             : safeBg;
 
+    
     // TARGET STOK AMAN = 2 KALI BATAS MINIMUM
     final targetStokAman = minimum * 2;
 
     // MENGHITUNG PERSENTASE STOK
     final ratio = targetStokAman <= 0
-        ? 1.0
+        ? 0.0
         : stok / targetStokAman;
 
     final barValue = ratio.clamp(0.0, 1.0);
@@ -953,6 +1125,7 @@ class _BahanAdminState extends State<BahanAdmin> {
 
           const SizedBox(height: 8),
 
+          
           // PROGRESS BAR STOK
           Row(
             children: [
@@ -963,8 +1136,7 @@ class _BahanAdminState extends State<BahanAdmin> {
                     value: barValue,
                     minHeight: 8,
                     backgroundColor: const Color(0xFFE9ECE9),
-                    valueColor:
-                        AlwaysStoppedAnimation<Color>(
+                    valueColor: AlwaysStoppedAnimation<Color>(
                       krisis
                           ? Colors.red
                           : menipis
@@ -986,6 +1158,37 @@ class _BahanAdminState extends State<BahanAdmin> {
                 ),
               ),
             ],
+          ),
+
+          // TOMBOL TAMBAH STOK
+          const SizedBox(height: 12),
+
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => _showTambahStokDialog(item),
+              icon: const Icon(
+                Icons.add_circle_outline_rounded,
+                size: 17,
+              ),
+              label: const Text(
+                'Tambah Stok',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: primary,
+                side: const BorderSide(
+                  color: Color(0xFFD5E4D9),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+              ),
+            ),
           ),
         ],
       ),

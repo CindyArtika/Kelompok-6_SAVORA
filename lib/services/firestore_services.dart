@@ -96,36 +96,122 @@ class FirestoreService {
     return hasil;
   }
 
+  
   // Menambahkan bahan baru
   Future<String> tambahBahan(Map<String, dynamic> data) async {
-    final nama = (data['nama'] ?? data['name'] ?? '')
-        .toString()
-        .trim()
-        .toLowerCase();
+    try {
+      final dataFirestore = konversiKeFirestore(data);
 
-    final id = nama
-        .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
-        .replaceAll(RegExp(r'^_+|_+$'), '');
+      final nama = (dataFirestore['name'] ?? '').toString().trim();
 
-    final docRef = _db.collection('stok_bahan').doc(id);
+      if (nama.isEmpty) {
+        throw Exception('Nama bahan tidak boleh kosong.');
+      }
 
-    // Cek apakah ID sudah digunakan
-    final existingDoc = await docRef.get();
+      // Membuat ID berdasarkan nama bahan.
+      final id = nama
+          .toLowerCase()
+          .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+          .replaceAll(RegExp(r'^_+|_+$'), '');
 
-    if (existingDoc.exists) {
-      throw Exception('Bahan dengan nama tersebut sudah tersedia.');
+      if (id.isEmpty) {
+        throw Exception('Nama bahan tidak valid untuk Document ID.');
+      }
+
+      // Mengakses koleksi stok_bahan.
+      final collection = _db.collection('stok_bahan');
+
+      // Memeriksa nama bahan di seluruh dokumen lama.
+      final snapshot = await collection.get();
+
+      final namaSudahAda = snapshot.docs.any((doc) {
+        final namaLama = (doc.data()['name'] ?? '')
+            .toString()
+            .trim()
+            .toLowerCase();
+
+        return namaLama == nama.toLowerCase();
+      });
+
+      if (namaSudahAda) {
+        throw Exception(
+          'Bahan "$nama" sudah tersedia di Firestore.',
+        );
+      }
+
+      // Memeriksa apakah ID sudah digunakan.
+      final docRef = collection.doc(id);
+      final existingDoc = await docRef.get();
+
+      if (existingDoc.exists) {
+        throw Exception(
+          'Document ID "$id" sudah digunakan. Data lama tidak diubah.',
+        );
+      }
+
+      // Menyimpan bahan baru.
+      await docRef.set({
+        ...dataFirestore,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      debugPrint('BAHAN BERHASIL DISIMPAN');
+      debugPrint('DOCUMENT ID: $id');
+      debugPrint('NAMA BAHAN: $nama');
+
+      return id;
+    } catch (e, stackTrace) {
+      debugPrint('GAGAL MENAMBAH BAHAN: $e');
+      debugPrint('STACK TRACE: $stackTrace');
+      rethrow;
     }
-
-    await docRef.set({
-      ...konversiKeFirestore(data),
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-
-    return docRef.id;
   }
 
-  // Mengubah data bahan
+  // Menambahkan stok ke bahan yang sudah terdaftar
+  Future<void> tambahStokBahan({
+    required String id,
+    required double jumlah,
+    String? catatan,
+  }) async {
+    if (jumlah <= 0) {
+      throw Exception('Jumlah stok harus lebih dari 0.');
+    }
+
+    final docRef = _db.collection('stok_bahan').doc(id);
+    final riwayatRef = docRef.collection('riwayat_stok').doc();
+
+    await _db.runTransaction((transaction) async {
+      final snapshot = await transaction.get(docRef);
+
+      if (!snapshot.exists) {
+        throw Exception('Data bahan tidak ditemukan.');
+      }
+
+      final data = snapshot.data()!;
+      final stokLama = (data['stockQty'] as num?)?.toDouble() ?? 0;
+      final stokBaru = stokLama + jumlah;
+      final satuan = data['unit']?.toString() ?? '';
+
+      // Perbarui jumlah stok
+      transaction.update(docRef, {
+        'stockQty': stokBaru,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Simpan riwayat penambahan stok
+      transaction.set(riwayatRef, {
+        'type': 'masuk',
+        'quantity': jumlah,
+        'stockBefore': stokLama,
+        'stockAfter': stokBaru,
+        'unit': satuan,
+        'note': catatan ?? '',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
   Future<void> updateBahan(
     String id,
     Map<String, dynamic> data,
