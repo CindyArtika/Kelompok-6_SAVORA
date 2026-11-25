@@ -1312,9 +1312,55 @@ Widget _stockImage(
     }
   }
 
-  
-Future<void> _editStockRequest(Map<String, dynamic> request) async {
-  final requestId = (request['_requestId'] ?? '').toString();
+  Future<void> _editStockRequest(Map<String, dynamic> request) async {
+    final requestId = (request['_requestId'] ?? '').toString();
+
+    if (requestId.isEmpty ||
+        request['status'] != 'Menunggu Konfirmasi Admin') {
+      return;
+    }
+
+    final result = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (_) => _AjukanBahanDialog(
+        namaBahan: (request['namaBahan'] ?? '').toString(),
+        stokSaatIni:
+            '${request['stokSaatPengajuan'] ?? 0} ${request['satuan'] ?? ''}',
+        satuan: (request['satuan'] ?? 'Unit').toString(),
+        initialQuantity: (request['jumlahDiajukan'] ?? '').toString(),
+        initialNote: (request['catatan'] ?? '').toString(),
+        isEditing: true,
+      ),
+    );
+
+    if (!mounted || result == null) {
+      return;
+    }
+
+    try {
+      await StockFirestoreService.updateStockRequest(
+        requestId: requestId,
+        quantity: double.parse(
+          result['quantity']!.replaceAll(',', '.'),
+        ),
+        note: result['note'] ?? '',
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pengajuan berhasil diperbarui.'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal mengedit pengajuan: $e')),
+      );
+    }
+  }
 
   if (requestId.isEmpty ||
       request['status'] != 'Menunggu Konfirmasi Admin') {
@@ -1363,6 +1409,71 @@ Future<void> _editStockRequest(Map<String, dynamic> request) async {
   }
 }
 
+  Future<void> _cancelStockRequest(
+    Map<String, dynamic> request,
+  ) async {
+    final requestId = (request['_requestId'] ?? '').toString();
+
+    if (requestId.isEmpty ||
+        request['status'] != 'Menunggu Konfirmasi Admin') {
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: const Text('Batalkan Pengajuan?'),
+        content: Text(
+          'Pengajuan ${(request['namaBahan'] ?? 'bahan ini').toString()} '
+          'akan ditandai sebagai dibatalkan. '
+          'Tindakan ini tidak dapat diurungkan.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Kembali'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFD92D2D),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Ya, Batalkan'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    try {
+      await StockFirestoreService.cancelStockRequest(
+        requestId: requestId,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pengajuan berhasil dibatalkan.'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal membatalkan pengajuan: $e'),
+        ),
+      );
+    }
+  }
 
  
 Future<void> _cancelStockRequest(

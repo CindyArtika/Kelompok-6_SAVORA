@@ -1,4 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'dart:io';
+import 'dart:async';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:tubes_pemmob/services/firestore_services.dart';
 
 class BahanAdmin extends StatefulWidget {
   const BahanAdmin({super.key});
@@ -24,112 +30,110 @@ class _BahanAdminState extends State<BahanAdmin> {
   String _searchQuery = '';
   String _selectedFilter = 'Semua';
 
-  final List<Map<String, dynamic>> _bahan = [
-    {
-      'nama': 'Fresh Milk Pasteurisasi',
-      'kategori': 'Dairy',
-      'stok': 4.5,
-      'satuan': 'Liter',
-      'minimum': 10.0,
-      'harga': 22000,
-      'gambar': 'assets/images/bahan/fresh_milk.png',
-    },
-    {
-      'nama': 'Biji Kopi Arabika',
-      'kategori': 'Coffee',
-      'stok': 8.0,
-      'satuan': 'Kg',
-      'minimum': 5.0,
-      'harga': 145000,
-      'gambar': 'assets/images/bahan/biji_kopi.png',
-    },
-    {
-      'nama': 'Sirup Vanilla',
-      'kategori': 'Syrup',
-      'stok': 2.0,
-      'satuan': 'Botol',
-      'minimum': 5.0,
-      'harga': 68000,
-      'gambar': 'assets/images/bahan/sirup_vanilla.png',
-    },
-    {
-      'nama': 'Gula Aren',
-      'kategori': 'Sweetener',
-      'stok': 12.0,
-      'satuan': 'Kg',
-      'minimum': 4.0,
-      'harga': 35000,
-      'gambar': 'assets/images/bahan/gula_aren.png',
-    },
-    {
-      'nama': 'Cup Plastik 16 oz',
-      'kategori': 'Packaging',
-      'stok': 150.0,
-      'satuan': 'Pcs',
-      'minimum': 50.0,
-      'harga': 850,
-      'gambar': 'assets/images/bahan/cup_plastik.png',
-    },
-    {
-      'nama': 'Saus Caramel',
-      'kategori': 'Syrup',
-      'stok': 4.0,
-      'satuan': 'Botol',
-      'minimum': 5.0,
-      'harga': 75000,
-      'gambar': 'assets/images/bahan/saus_caramel.png',
-    },
-  ];
+  final FirestoreService _firestoreService = FirestoreService();
+
+  StreamSubscription? _bahanSubscription;
+  bool _sedangMemuat = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _dengarkanDataBahan();
+  }
+
+  
+  void _dengarkanDataBahan() {
+    _bahanSubscription = _firestoreService.streamBahan().listen(
+      (snapshot) {
+        if (!mounted) return;
+
+        setState(() {
+          _bahan
+            ..clear()
+            ..addAll(snapshot.docs.map((doc) {
+              return {
+                ..._firestoreService.konversiDataBahan(doc.data()),
+                'id': doc.id,
+              };
+            }));
+
+          _sedangMemuat = false;
+        });
+      },
+      onError: (error) {
+        debugPrint('Gagal mengambil data bahan: $error');
+
+        if (!mounted) return;
+
+        setState(() {
+          _sedangMemuat = false;
+        });
+
+        _showMessage('Gagal memuat data bahan dari Firestore.');
+      },
+    );
+  }
+
+  final List<Map<String, dynamic>> _bahan = [];
 
   @override
   void dispose() {
+    _bahanSubscription?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
-  // MENGHITUNG STOK KRISIS
-  int get _jumlahKrisis {
-    return _bahan.where((e) {
-      final stok = (e['stok'] as num).toDouble();
-      final minimum = (e['minimum'] as num).toDouble();
-      return stok <= minimum * 0.5;
-    }).length;
+  // MENGHITUNG STATUS STOK
+  double _nilaiStok(Map<String, dynamic> item, String key) {
+    return (item[key] as num?)?.toDouble() ?? 0;
   }
 
-  // MENGHITUNG STOK MENIPIS
-  int get _jumlahMenipis {
-    return _bahan.where((e) {
-      final stok = (e['stok'] as num).toDouble();
-      final minimum = (e['minimum'] as num).toDouble();
-      return stok > minimum * 0.5 && stok <= minimum;
-    }).length;
+  bool _stokKrisis(Map<String, dynamic> item) {
+    return _nilaiStok(item, 'stok') <=
+        _nilaiStok(item, 'criticalThreshold');
   }
 
-  // MENGHITUNG STOK AMAN
-  int get _jumlahAman {
-    return _bahan.where((e) {
-      final stok = (e['stok'] as num).toDouble();
-      final minimum = (e['minimum'] as num).toDouble();
-      return stok > minimum;
-    }).length;
+  bool _stokMenipis(Map<String, dynamic> item) {
+    final stok = _nilaiStok(item, 'stok');
+    final kritis = _nilaiStok(item, 'criticalThreshold');
+    final minimum = _nilaiStok(item, 'minimum');
+
+    return stok > kritis && stok <= minimum;
   }
+
+  bool _stokAman(Map<String, dynamic> item) {
+    return _nilaiStok(item, 'stok') >
+        _nilaiStok(item, 'minimum');
+  }
+
+  int get _jumlahKrisis =>
+      _bahan.where(_stokKrisis).length;
+
+  int get _jumlahMenipis =>
+      _bahan.where(_stokMenipis).length;
+
+  int get _jumlahAman =>
+      _bahan.where(_stokAman).length;
 
   // PENCARIAN DAN FILTER BAHAN
   List<Map<String, dynamic>> get _filteredBahan {
     return _bahan.where((item) {
       final nama = item['nama'].toString().toLowerCase();
       final kategori = item['kategori'].toString().toLowerCase();
+
+      final kategoriUtama =
+          (item['kategoriUtama'] ?? '').toString().toLowerCase();
+
       final query = _searchQuery.toLowerCase();
 
       final cocokSearch =
-          nama.contains(query) || kategori.contains(query);
+          nama.contains(query) ||
+          kategori.contains(query) ||
+          kategoriUtama.contains(query);
 
-      final stok = (item['stok'] as num).toDouble();
-      final minimum = (item['minimum'] as num).toDouble();
-
-      final krisis = stok <= minimum * 0.5;
-      final menipis = stok > minimum * 0.5 && stok <= minimum;
-      final aman = stok > minimum;
+      final krisis = _stokKrisis(item);
+      final menipis = _stokMenipis(item);
+      final aman = _stokAman(item);
 
       final cocokFilter = _selectedFilter == 'Semua' ||
           (_selectedFilter == 'Krisis' && krisis) ||
@@ -154,231 +158,221 @@ class _BahanAdminState extends State<BahanAdmin> {
     Map<String, dynamic>? item,
     int? index,
   }) async {
-    final nama = TextEditingController(
-      text: item?['nama'] ?? '',
+    final result = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => FormBahanPage(item: item),
+      ),
     );
 
-    final kategori = TextEditingController(
-      text: item?['kategori'] ?? '',
-    );
+    if (result == null || !mounted) return;
 
-    final stok = TextEditingController(
-      text: item?['stok']?.toString() ?? '',
-    );
+    try {
+      final id = item?['id']?.toString();
 
-    final satuan = TextEditingController(
-      text: item?['satuan'] ?? '',
-    );
+      if (id == null || id.isEmpty) {
+        // Simpan bahan baru ke Firestore
+        await _firestoreService.tambahBahan(result);
 
-    final minimum = TextEditingController(
-      text: item?['minimum']?.toString() ?? '',
-    );
+        if (!mounted) return;
+        _showMessage('Bahan berhasil ditambahkan.');
+      } else {
+        // Perbarui dokumen bahan yang sudah ada
+        await _firestoreService.updateBahan(id, result);
 
-    final harga = TextEditingController(
-      text: item?['harga']?.toString() ?? '',
-    );
+        if (!mounted) return;
+        _showMessage('Data bahan berhasil diperbarui.');
+      }
 
-    final result = await showDialog<Map<String, dynamic>>(
+      // Daftar bahan akan diperbarui otomatis oleh streamBahan().
+    } catch (e, stackTrace) {
+      debugPrint('GAGAL MENYIMPAN BAHAN: $e');
+      debugPrint('STACK TRACE: $stackTrace');
+
+      if (!mounted) return;
+
+      _showMessage('Gagal menyimpan: $e');
+    }
+  }
+
+
+  // DIALOG TAMBAH STOK BAHAN
+  Future<void> _showTambahStokDialog(
+    Map<String, dynamic> item,
+  ) async {
+    final jumlahController = TextEditingController();
+    final catatanController = TextEditingController();
+
+    final nama = item['nama']?.toString() ?? '';
+    final satuan = item['satuan']?.toString() ?? '';
+    final id = item['id']?.toString() ?? '';
+
+    if (id.isEmpty) {
+      _showMessage('ID bahan tidak ditemukan.');
+      return;
+    }
+
+    final jumlahStok = await showDialog<double>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(22),
-        ),
-        title: Text(
-          item == null ? 'Tambah Bahan' : 'Edit Bahan',
-          style: const TextStyle(
-            color: primary,
-            fontWeight: FontWeight.w800,
-            fontSize: 19,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
           ),
-        ),
-        content: SizedBox(
-          width: 420,
-          child: SingleChildScrollView(
+          title: const Text(
+            'Tambah Stok Bahan',
+            style: TextStyle(
+              color: primary,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _formField(
+                Text(
                   nama,
-                  'Nama bahan',
-                  Icons.inventory_2_outlined,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                  ),
                 ),
-                const SizedBox(height: 11),
-                _formField(
-                  kategori,
-                  'Kategori',
-                  Icons.category_outlined,
+                const SizedBox(height: 5),
+                Text(
+                  'Stok saat ini: '
+                  '${_formatNumber((item['stok'] as num?) ?? 0)} $satuan',
+                  style: const TextStyle(
+                    color: muted,
+                    fontSize: 12,
+                  ),
                 ),
-                const SizedBox(height: 11),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _formField(
-                        stok,
-                        'Jumlah stok',
-                        Icons.scale_outlined,
-                        numeric: true,
-                      ),
+                const SizedBox(height: 18),
+                const Text(
+                  'Jumlah stok masuk',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 7),
+                TextField(
+                  controller: jumlahController,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Contoh: 10',
+                    suffixText: satuan,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _formField(
-                        satuan,
-                        'Satuan',
-                        Icons.straighten_rounded,
-                      ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'Catatan (opsional)',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 7),
+                TextField(
+                  controller: catatanController,
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    hintText: 'Contoh: Pembelian dari supplier',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 11),
-                _formField(
-                  minimum,
-                  'Batas minimum stok',
-                  Icons.warning_amber_outlined,
-                  numeric: true,
-                ),
-                const SizedBox(height: 11),
-                _formField(
-                  harga,
-                  'Harga per satuan (Rp)',
-                  Icons.payments_outlined,
-                  numeric: true,
+                  ),
                 ),
               ],
             ),
           ),
-        ),
-        actionsPadding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text(
-              'Batal',
-              style: TextStyle(color: muted),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primary,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+              },
+              child: const Text(
+                'Batal',
+                style: TextStyle(color: muted),
               ),
             ),
-            onPressed: () {
-              final stockValue = double.tryParse(
-                stok.text.replaceAll(',', '.'),
-              );
-
-              final minValue = double.tryParse(
-                minimum.text.replaceAll(',', '.'),
-              );
-
-              final priceValue = int.tryParse(harga.text);
-
-              if (nama.text.trim().isEmpty ||
-                  kategori.text.trim().isEmpty ||
-                  stockValue == null ||
-                  satuan.text.trim().isEmpty ||
-                  minValue == null ||
-                  priceValue == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Lengkapi semua data dengan benar.',
-                    ),
-                  ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primary,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                final jumlah = double.tryParse(
+                  jumlahController.text.trim().replaceAll(',', '.'),
                 );
-                return;
-              }
 
-              Navigator.pop(dialogContext, {
-                'nama': nama.text.trim(),
-                'kategori': kategori.text.trim(),
-                'stok': stockValue,
-                'satuan': satuan.text.trim(),
-                'minimum': minValue,
-                'harga': priceValue,
-                'gambar': item?['gambar'] ?? '',
-              });
-            },
-            child: const Text('Simpan'),
-          ),
-        ],
-      ),
+                if (jumlah == null || jumlah <= 0) {
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Masukkan jumlah stok yang valid.',
+                      ),
+                    ),
+                  );
+                  return;
+                }
+
+                Navigator.pop(dialogContext, jumlah);
+              },
+              child: const Text('Simpan Stok'),
+            ),
+          ],
+        );
+      },
     );
 
-    nama.dispose();
-    kategori.dispose();
-    stok.dispose();
-    satuan.dispose();
-    minimum.dispose();
-    harga.dispose();
+    final catatan = catatanController.text.trim();
 
-    if (result == null || !mounted) return;
+    // Tunggu animasi penutupan dialog selesai.
+    await Future.delayed(const Duration(milliseconds: 300));
 
-    setState(() {
-      if (index == null) {
-        _bahan.insert(0, result);
-      } else {
-        _bahan[index] = result;
-      }
-    });
+    jumlahController.dispose();
+    catatanController.dispose();
 
-    _showMessage(
-      index == null
-          ? 'Bahan berhasil ditambahkan.'
-          : 'Data bahan berhasil diperbarui.',
-    );
-  }
+    if (jumlahStok == null || !mounted) return;
 
-  Widget _formField(
-    TextEditingController controller,
-    String label,
-    IconData icon, {
-    bool numeric = false,
-  }) {
-    return TextField(
-      controller: controller,
-      keyboardType: numeric
-          ? const TextInputType.numberWithOptions(decimal: true)
-          : TextInputType.text,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(
-          icon,
-          color: primary,
-          size: 20,
-        ),
-        labelStyle: const TextStyle(
-          color: muted,
-          fontSize: 13,
-        ),
-        filled: true,
-        fillColor: background,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(13),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(13),
-          borderSide: const BorderSide(color: line),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(13),
-          borderSide: const BorderSide(
-            color: primary,
-            width: 1.2,
-          ),
-        ),
-      ),
-    );
+    try {
+      await _firestoreService.tambahStokBahan(
+        id: id,
+        jumlah: jumlahStok,
+        catatan: catatan,
+      );
+
+      if (!mounted) return;
+
+      _showMessage(
+        'Stok $nama berhasil ditambahkan.',
+      );
+    } catch (e, stackTrace) {
+      debugPrint('GAGAL MENAMBAH STOK: $e');
+      debugPrint('STACK TRACE: $stackTrace');
+
+      if (!mounted) return;
+
+      _showMessage('Gagal menambahkan stok: $e');
+    }
   }
 
   Future<void> _deleteBahan(int index) async {
-    final name = _bahan[index]['nama'];
+    final item = _bahan[index];
+    final name = item['nama'];
+    final id = item['id']?.toString();
+
+    if (id == null || id.isEmpty) {
+      _showMessage('ID bahan tidak ditemukan.');
+      return;
+    }
 
     final confirm = await showDialog<bool>(
       context: context,
@@ -410,12 +404,18 @@ class _BahanAdminState extends State<BahanAdmin> {
       ),
     );
 
-    if (confirm == true && mounted) {
-      setState(() {
-        _bahan.removeAt(index);
-      });
+    if (confirm != true || !mounted) return;
 
+    try {
+      await _firestoreService.hapusBahan(id);
+
+      if (!mounted) return;
       _showMessage('Bahan berhasil dihapus.');
+    } catch (e) {
+      debugPrint('Gagal menghapus bahan: $e');
+
+      if (!mounted) return;
+      _showMessage('Gagal menghapus bahan dari Firestore.');
     }
   }
 
@@ -454,7 +454,16 @@ class _BahanAdminState extends State<BahanAdmin> {
 
             const SizedBox(height: 13),
 
-            if (_filteredBahan.isEmpty)
+            if (_sedangMemuat)
+              const Padding(
+                padding: EdgeInsets.all(30),
+                child: Center(
+                  child: CircularProgressIndicator(
+                    color: primary,
+                  ),
+                ),
+              )
+            else if (_filteredBahan.isEmpty)
               _buildEmptyState()
             else
               ..._filteredBahan.map((item) {
@@ -860,8 +869,8 @@ class _BahanAdminState extends State<BahanAdmin> {
     final minimum = (item['minimum'] as num).toDouble();
 
     // MENENTUKAN STATUS STOK
-    final krisis = stok <= minimum * 0.5;
-    final menipis = stok > minimum * 0.5 && stok <= minimum;
+    final krisis = _stokKrisis(item);
+    final menipis = _stokMenipis(item);
 
     final statusText = krisis
         ? 'Stok krisis'
@@ -881,7 +890,14 @@ class _BahanAdminState extends State<BahanAdmin> {
             ? warningBg
             : safeBg;
 
-    final ratio = minimum <= 0 ? 1.0 : stok / minimum;
+    
+    // TARGET STOK AMAN = 2 KALI BATAS MINIMUM
+    final targetStokAman = minimum * 2;
+
+    // MENGHITUNG PERSENTASE STOK
+    final ratio = targetStokAman <= 0
+        ? 0.0
+        : stok / targetStokAman;
 
     final barValue = ratio.clamp(0.0, 1.0);
 
@@ -919,13 +935,17 @@ class _BahanAdminState extends State<BahanAdmin> {
                   height: 68,
                   child: imagePath.isEmpty
                       ? _imageFallback()
-                      : Image.asset(
-                          imagePath,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) {
-                            return const SizedBox.shrink();
-                          },
-                        ),
+                      : imagePath.startsWith('assets/')
+                          ? Image.asset(
+                              imagePath,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => _imageFallback(),
+                            )
+                          : Image.file(
+                              File(imagePath),
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => _imageFallback(),
+                            ),
                 ),
               ),
 
@@ -949,7 +969,7 @@ class _BahanAdminState extends State<BahanAdmin> {
                     const SizedBox(height: 2),
 
                     Text(
-                      item['kategori'].toString(),
+                      item['kategori']?.toString() ?? '',
                       style: const TextStyle(
                         color: muted,
                         fontSize: 10,
@@ -1105,6 +1125,7 @@ class _BahanAdminState extends State<BahanAdmin> {
 
           const SizedBox(height: 8),
 
+          
           // PROGRESS BAR STOK
           Row(
             children: [
@@ -1115,8 +1136,7 @@ class _BahanAdminState extends State<BahanAdmin> {
                     value: barValue,
                     minHeight: 8,
                     backgroundColor: const Color(0xFFE9ECE9),
-                    valueColor:
-                        AlwaysStoppedAnimation<Color>(
+                    valueColor: AlwaysStoppedAnimation<Color>(
                       krisis
                           ? Colors.red
                           : menipis
@@ -1138,6 +1158,37 @@ class _BahanAdminState extends State<BahanAdmin> {
                 ),
               ),
             ],
+          ),
+
+          // TOMBOL TAMBAH STOK
+          const SizedBox(height: 12),
+
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => _showTambahStokDialog(item),
+              icon: const Icon(
+                Icons.add_circle_outline_rounded,
+                size: 17,
+              ),
+              label: const Text(
+                'Tambah Stok',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: primary,
+                side: const BorderSide(
+                  color: Color(0xFFD5E4D9),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+              ),
+            ),
           ),
         ],
       ),
@@ -1209,5 +1260,830 @@ class _BahanAdminState extends State<BahanAdmin> {
         ],
       ),
     );
+  }
+}
+class FormBahanPage extends StatefulWidget {
+  final Map<String, dynamic>? item;
+
+  const FormBahanPage({
+    super.key,
+    this.item,
+  });
+
+  @override
+  State<FormBahanPage> createState() => _FormBahanPageState();
+}
+
+class _FormBahanPageState extends State<FormBahanPage> {
+  static const Color primary = Color(0xFF143C2D);
+  static const Color background = Color(0xFFF4F8F5);
+  static const Color textColor = Color(0xFF17212D);
+  static const Color muted = Color(0xFF758078);
+  static const Color borderColor = Color(0xFFE5ECE6);
+
+  final _formKey = GlobalKey<FormState>();
+
+  late final TextEditingController namaController;
+  late final TextEditingController stokController;
+  late final TextEditingController hargaController;
+  late final TextEditingController minimumController;
+
+  // KATEGORI SESUAI FIRESTORE TIM
+  final List<String> kategoriList = [
+    'Bahan Minuman',
+    'Pastry',
+    'Bahan Operasional',
+  ];
+
+  // PILIHAN SATUAN
+  final List<String> satuanList = [
+    'Kg',
+    'Gram',
+    'Liter',
+    'Ml',
+    'Botol',
+    'Pcs',
+    'Box',
+    'Pack',
+    'Sachet',
+    'Kotak',
+    'Karton',
+  ];
+
+  String? kategoriTerpilih;
+  String? satuanTerpilih;
+
+  double minimumStok = 0;
+  double jumlahStok = 0;
+  XFile? gambarTerpilih;
+
+  final ImagePicker _picker = ImagePicker();
+
+    Future<String> _simpanGambarPermanen(XFile gambar) async {
+    // Ambil direktori penyimpanan permanen aplikasi
+    final directory = await getApplicationDocumentsDirectory();
+
+    // Buat folder khusus untuk gambar bahan
+    final folder = Directory('${directory.path}/gambar_bahan');
+
+    if (!await folder.exists()) {
+      await folder.create(recursive: true);
+    }
+
+    // Ambil ekstensi gambar
+    String extension = '.jpg';
+
+    final titikTerakhir = gambar.path.lastIndexOf('.');
+    if (titikTerakhir != -1) {
+      extension = gambar.path.substring(titikTerakhir);
+    }
+
+    // Buat nama file unik
+    final namaFile =
+        'bahan_${DateTime.now().microsecondsSinceEpoch}$extension';
+
+    // Salin gambar dari cache ke penyimpanan permanen
+    final fileBaru = await File(gambar.path).copy(
+      '${folder.path}/$namaFile',
+    );
+
+    return fileBaru.path;
+  }
+
+  bool get isEdit => widget.item != null;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final item = widget.item;
+
+    namaController = TextEditingController(
+      text: item?['nama']?.toString() ?? '',
+    );
+
+    jumlahStok = (item?['stok'] as num?)?.toDouble() ?? 0;
+
+    stokController = TextEditingController(
+      text: _formatJumlah(jumlahStok),
+    );
+
+    hargaController = TextEditingController(
+      text: _formatRupiah(
+        (item?['harga'] as num?)?.toInt() ?? 0,
+      ),
+    );
+
+    // Inisialisasi batas minimum
+    minimumStok = (item?['minimum'] as num?)?.toDouble() ?? 0;
+
+    minimumController = TextEditingController(
+      text: item != null ? _formatJumlah(minimumStok) : '',
+    );
+
+    if (item != null) {
+      kategoriTerpilih = item['kategori']?.toString();
+      satuanTerpilih = item['satuan']?.toString();
+    }
+  }
+
+  @override
+  void dispose() {
+    namaController.dispose();
+    stokController.dispose();
+    hargaController.dispose();
+    minimumController.dispose();
+    super.dispose();
+  }
+
+  String _formatJumlah(double value) {
+    if (value == value.roundToDouble()) {
+      return value.toInt().toString();
+    }
+    return value.toString().replaceAll('.', ',');
+  }
+
+  String _formatRupiah(int value) {
+    final angka = value.toString();
+    final buffer = StringBuffer();
+
+    for (int i = 0; i < angka.length; i++) {
+      buffer.write(angka[i]);
+
+      final sisa = angka.length - i - 1;
+      if (sisa > 0 && sisa % 3 == 0) {
+        buffer.write('.');
+      }
+    }
+
+    return buffer.toString();
+  }
+
+  int _parseRupiah(String value) {
+    return int.tryParse(value.replaceAll('.', '').replaceAll(',', '')) ?? 0;
+  }
+
+  void _pilihKategori(String? value) {
+    if (value == null) return;
+
+    setState(() {
+      kategoriTerpilih = value;
+    });
+  }
+
+  void _ubahStok(double perubahan) {
+    setState(() {
+      jumlahStok = (jumlahStok + perubahan).clamp(0, 999999).toDouble();
+      stokController.text = _formatJumlah(jumlahStok);
+      stokController.selection = TextSelection.collapsed(
+        offset: stokController.text.length,
+      );
+    });
+  }
+
+  Widget _label(String text, {bool required = true}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Text(
+            text,
+            style: const TextStyle(
+              color: textColor,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (required)
+            const Text(
+              ' *',
+              style: TextStyle(color: Colors.red),
+            ),
+        ],
+      ),
+    );
+  }
+
+  InputDecoration _decoration({
+    String? hint,
+    Widget? prefix,
+    Widget? suffix,
+  }) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: muted, fontSize: 13),
+      prefixIcon: prefix,
+      suffixIcon: suffix,
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 15,
+        vertical: 15,
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: borderColor),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: borderColor),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: primary, width: 1.4),
+      ),
+    );
+  }
+  // MEMILIH GAMBAR DARI GALERI HP
+  Future<void> _pilihGambar() async {
+    final XFile? gambar = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+      maxWidth: 1200,
+    );
+
+    if (gambar != null && mounted) {
+      setState(() {
+        gambarTerpilih = gambar;
+      });
+    }
+  }
+
+  // PREVIEW GAMBAR BAHAN
+  Widget _inputGambar() {
+    final gambarLama = widget.item?['gambar']?.toString() ?? '';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _label('Foto Bahan'),
+        GestureDetector(
+          onTap: _pilihGambar,
+          child: Container(
+            width: double.infinity,
+            height: 180,
+            decoration: BoxDecoration(
+              color: const Color(0xFFEAF2EC),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: borderColor),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: gambarTerpilih != null
+                ? Image.file(
+                    File(gambarTerpilih!.path),
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                  )
+                : gambarLama.isNotEmpty
+                    ? (gambarLama.startsWith('assets/')
+                        ? Image.asset(
+                            gambarLama,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            errorBuilder: (_, _, _) =>
+                                _placeholderGambar(),
+                          )
+                        : Image.file(
+                            File(gambarLama),
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            errorBuilder: (_, _, _) =>
+                                _placeholderGambar(),
+                          ))
+                    : _placeholderGambar(),
+          ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _pilihGambar,
+            icon: const Icon(Icons.photo_library_outlined),
+            label: Text(
+              gambarTerpilih != null || gambarLama.isNotEmpty
+                  ? 'Ganti Gambar'
+                  : 'Pilih dari Galeri',
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: primary,
+              side: const BorderSide(color: primary),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+        const Text(
+          'Pilih foto bahan dari galeri HP.',
+          style: TextStyle(color: muted, fontSize: 11),
+        ),
+      ],
+    );
+  }
+
+  Widget _placeholderGambar() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.add_photo_alternate_outlined,
+            size: 42,
+            color: primary,
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Belum ada gambar bahan',
+            style: TextStyle(
+              color: muted,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _inputNama() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _label('Nama Bahan'),
+        TextFormField(
+          controller: namaController,
+          onChanged: (_) {
+            setState(() {});
+          },
+          textCapitalization: TextCapitalization.words,
+          decoration: _decoration(
+            hint: 'Contoh: Fresh Milk Pasteurisasi',
+            prefix: const Icon(
+              Icons.inventory_2_outlined,
+              color: primary,
+              size: 20,
+            ),
+          ),
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return 'Nama bahan wajib diisi';
+            }
+            return null;
+          },
+        ),
+      ],
+    );
+  }
+
+    Widget _inputKategori() {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _label('Kategori'),
+          DropdownButtonFormField<String>(
+            initialValue: kategoriList.contains(kategoriTerpilih)
+                ? kategoriTerpilih
+                : null,
+            isExpanded: true,
+            decoration: _decoration(
+              hint: 'Pilih kategori bahan',
+              prefix: const Icon(
+                Icons.category_outlined,
+                color: primary,
+                size: 20,
+              ),
+            ),
+            items: kategoriList.map((kategori) {
+              return DropdownMenuItem(
+                value: kategori,
+                child: Text(kategori),
+              );
+            }).toList(),
+            onChanged: _pilihKategori,
+            validator: (value) {
+              if (value == null) {
+                return 'Pilih kategori bahan';
+              }
+              return null;
+            },
+          ),
+        ],
+      );
+    }
+
+  Widget _inputStok() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _label('Jumlah Stok'),
+        Row(
+          children: [
+            Expanded(
+              child: TextFormField(
+                controller: stokController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: _decoration(
+                  hint: '0',
+                ),
+                onChanged: (value) {
+                  final parsed = double.tryParse(
+                    value.replaceAll(',', '.'),
+                  );
+
+                  if (parsed != null && parsed >= 0) {
+                    jumlahStok = parsed;
+                  }
+                },
+                validator: (value) {
+                  final parsed = double.tryParse(
+                    (value ?? '').replaceAll(',', '.'),
+                  );
+
+                  if (parsed == null || parsed < 0) {
+                    return 'Masukkan jumlah stok yang valid';
+                  }
+                  return null;
+                },
+              ),
+            ),
+            const SizedBox(width: 8),
+            _tombolStok(
+              icon: Icons.remove,
+              onTap: () => _ubahStok(-1),
+            ),
+            const SizedBox(width: 6),
+            _tombolStok(
+              icon: Icons.add,
+              onTap: () => _ubahStok(1),
+              filled: true,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _tombolStok({
+    required IconData icon,
+    required VoidCallback onTap,
+    bool filled = false,
+  }) {
+    return Material(
+      color: filled ? primary : const Color(0xFFE8F0E9),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: SizedBox(
+          width: 43,
+          height: 53,
+          child: Icon(
+            icon,
+            color: filled ? Colors.white : primary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _inputSatuan() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _label('Satuan'),
+        DropdownButtonFormField<String>(
+          initialValue: satuanList.contains(satuanTerpilih)
+              ? satuanTerpilih
+              : null,
+          isExpanded: true,
+          decoration: _decoration(
+            hint: 'Pilih satuan',
+            prefix: const Icon(
+              Icons.straighten_rounded,
+              color: primary,
+              size: 20,
+            ),
+          ),
+          items: satuanList.map((satuan) {
+            return DropdownMenuItem(
+              value: satuan,
+              child: Text(satuan),
+            );
+          }).toList(),
+          onChanged: (value) {
+            setState(() => satuanTerpilih = value);
+          },
+          validator: (value) {
+            if (value == null) return 'Pilih satuan bahan';
+            return null;
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _inputMinimum() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _label('Batas Minimum Stok'),
+        TextFormField(
+          controller: minimumController,
+          keyboardType: const TextInputType.numberWithOptions(
+            decimal: true,
+          ),
+          decoration: _decoration(
+            hint: 'Masukkan batas minimum stok',
+            prefix: const Icon(
+              Icons.warning_amber_outlined,
+              color: primary,
+              size: 20,
+            ),
+          ),
+          onChanged: (value) {
+            minimumStok =
+                double.tryParse(value.replaceAll(',', '.')) ?? 0;
+            setState(() {});
+          },
+          validator: (value) {
+            final minimum = double.tryParse(
+              (value ?? '').replaceAll(',', '.'),
+            );
+
+            if (minimum == null || minimum <= 0) {
+              return 'Masukkan batas minimum lebih dari 0';
+            }
+
+            return null;
+          },
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'Batas kritis dihitung otomatis sebesar 50% dari batas minimum.',
+          style: TextStyle(color: muted, fontSize: 11),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Batas kritis: ${_formatJumlah(minimumStok * 0.5)}',
+          style: const TextStyle(
+            color: primary,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _inputHarga() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _label('Harga per Satuan'),
+        TextFormField(
+          controller: hargaController,
+          keyboardType: TextInputType.number,
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            _RupiahInputFormatter(),
+          ],
+          decoration: _decoration(
+            hint: '0',
+            prefix: const Padding(
+              padding: EdgeInsets.only(left: 14, right: 10),
+              child: Center(
+                widthFactor: 1,
+                child: Text(
+                  'Rp',
+                  style: TextStyle(
+                    color: primary,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Harga wajib diisi';
+            }
+            return null;
+          },
+        ),
+      ],
+    );
+  }
+
+    Future<void> _simpanBahan() async {
+
+    if (!_formKey.currentState!.validate()) return;
+
+    try {
+      final stok = double.parse(
+        stokController.text.replaceAll(',', '.'),
+      );
+
+      final harga = _parseRupiah(hargaController.text);
+
+      // Gunakan gambar lama jika tidak memilih gambar baru
+      String gambarPath =
+          widget.item?['gambar']?.toString() ?? '';
+
+      // Jika memilih gambar baru, salin ke penyimpanan permanen
+      if (gambarTerpilih != null) {
+        gambarPath = await _simpanGambarPermanen(gambarTerpilih!);
+      }
+
+      if (!mounted) return;
+
+      Navigator.pop(context, {
+        'nama': namaController.text.trim(),
+        'kategori': kategoriTerpilih,
+        'stok': stok,
+        'satuan': satuanTerpilih,
+        'minimum': minimumStok,
+        'harga': harga,
+        'gambar': gambarPath,
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal menyimpan bahan: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: background,
+      appBar: AppBar(
+        backgroundColor: background,
+        elevation: 0,
+        surfaceTintColor: background,
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: primary,
+            size: 20,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          isEdit ? 'Edit Bahan' : 'Tambah Bahan',
+          style: const TextStyle(
+            color: textColor,
+            fontSize: 19,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 30),
+          children: [
+            Container(
+              padding: const EdgeInsets.all(17),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE5F0E6),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: const Row(
+                children: [
+                  Icon(
+                    Icons.inventory_2_rounded,
+                    color: primary,
+                    size: 32,
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Informasi Bahan',
+                          style: TextStyle(
+                            color: primary,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Lengkapi informasi bahan baku untuk persediaan SAVORA.',
+                          style: TextStyle(
+                            color: muted,
+                            fontSize: 11,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            _inputGambar(),
+            const SizedBox(height: 22),
+            _inputNama(),
+            const SizedBox(height: 19),
+            _inputKategori(),
+            const SizedBox(height: 19),
+
+            // KOLOM NONAKTIF JIKA SUBKATEGORI SALAH
+            Column(
+              children: [
+                _inputStok(),
+                const SizedBox(height: 19),
+
+                _inputSatuan(),
+                const SizedBox(height: 19),
+
+                _inputMinimum(),
+                const SizedBox(height: 19),
+
+                _inputHarga(),
+              ],
+            ),
+            const SizedBox(height: 30),
+            SizedBox(
+              height: 54,
+              child: ElevatedButton.icon(
+                onPressed: _simpanBahan,
+                icon: const Icon(Icons.save_outlined),
+                label: Text(
+                  isEdit ? 'Simpan Perubahan' : 'Simpan Bahan',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RupiahInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+
+    if (digits.isEmpty) {
+      return const TextEditingValue(
+        text: '',
+        selection: TextSelection.collapsed(offset: 0),
+      );
+    }
+
+    final angka = int.tryParse(digits);
+    if (angka == null) return oldValue;
+
+    final formatted = _format(angka);
+
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(
+        offset: formatted.length,
+      ),
+    );
+  }
+
+  String _format(int value) {
+    final angka = value.toString();
+    final buffer = StringBuffer();
+
+    for (int i = 0; i < angka.length; i++) {
+      buffer.write(angka[i]);
+
+      final sisa = angka.length - i - 1;
+      if (sisa > 0 && sisa % 3 == 0) {
+        buffer.write('.');
+      }
+    }
+
+    return buffer.toString();
   }
 }
